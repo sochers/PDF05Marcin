@@ -12,22 +12,26 @@
   :root {
     --bg: #0e1117;
     --surface: #161b22;
+    --surface2: #1c2128;
     --border: #21262d;
+    --border-hi: #30363d;
     --text: #e6edf3;
     --text-dim: #8b949e;
-    --accent: #58a6ff;
+    --text-xdim: #484f58;
     --s-color: #3fb950;
     --m-color: #d29922;
     --l-color: #f85149;
-    --p50: rgba(88,166,255,0.5);
-    --p65: rgba(63,185,80,0.5);
-    --p85: rgba(210,153,34,0.5);
-    --p95: rgba(248,81,73,0.5);
-    --grid: rgba(48,54,61,0.6);
+    --no-color: #6e7681;
+    --p50: #58a6ff;
+    --p65: #3fb950;
+    --p85: #d29922;
+    --p95: #f85149;
     --font: 'DM Sans', system-ui, sans-serif;
     --mono: 'JetBrains Mono', monospace;
+    --radius: 10px;
   }
 
+  html { font-size: 15px; }
   body {
     background: var(--bg);
     color: var(--text);
@@ -38,460 +42,679 @@
     align-items: center;
     padding: 2rem 1rem;
   }
+  .dashboard { width: 100%; max-width: 1160px; }
 
-  .dashboard {
-    width: 100%;
-    max-width: 1100px;
+  header { margin-bottom: 1.6rem; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 0.5rem; }
+  header h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.03em; }
+  header p { color: var(--text-dim); font-size: 0.8rem; }
+  .btn-add {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text);
+    font-family: var(--font); font-size: 0.78rem; font-weight: 500;
+    padding: 0.45rem 0.9rem; border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; gap: 0.35rem; transition: border-color 0.15s;
   }
+  .btn-add:hover { border-color: var(--border-hi); }
+  .btn-add svg { width: 14px; height: 14px; }
 
-  header {
-    margin-bottom: 2rem;
-  }
-  header h1 {
-    font-size: 1.6rem;
-    font-weight: 700;
-    letter-spacing: -0.03em;
-    margin-bottom: 0.25rem;
-  }
-  header p {
-    color: var(--text-dim);
-    font-size: 0.85rem;
-  }
+  .stats-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 0.6rem; margin-bottom: 1.4rem; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.85rem; }
+  .stat-card .label { font-size: 0.65rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 0.2rem; }
+  .stat-card .value { font-family: var(--mono); font-size: 1.3rem; font-weight: 600; }
+  .stat-card .sub { font-size: 0.65rem; color: var(--text-dim); margin-top: 0.1rem; }
 
-  .controls {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-    align-items: center;
-  }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.65rem; margin-bottom: 1rem; align-items: center; }
+  .ctrl-label { font-size: 0.7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.05em; white-space: nowrap; margin-right: 0.2rem; }
 
-  .toggle-group {
-    display: flex;
-    gap: 2px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 3px;
+  .toggle-group, .percentile-toggles {
+    display: flex; gap: 2px; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 3px;
   }
-  .toggle-group button {
-    background: transparent;
-    border: none;
-    color: var(--text-dim);
-    font-family: var(--font);
-    font-size: 0.8rem;
-    font-weight: 500;
-    padding: 0.4rem 0.85rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
+  .toggle-group button, .percentile-toggles button {
+    background: transparent; border: none; color: var(--text-dim);
+    font-family: var(--font); font-size: 0.75rem; font-weight: 500;
+    padding: 0.35rem 0.7rem; border-radius: 6px; cursor: pointer; transition: all 0.15s;
+    display: flex; align-items: center; gap: 0.35rem;
   }
-  .toggle-group button.active {
-    background: var(--border);
-    color: var(--text);
-  }
-  .toggle-group button:hover:not(.active) {
-    color: var(--text);
-  }
-  .dot-indicator {
-    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
-  }
-
-  .percentile-toggles {
-    display: flex;
-    gap: 2px;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 3px;
-  }
-  .percentile-toggles button {
-    background: transparent;
-    border: none;
-    color: var(--text-dim);
-    font-family: var(--mono);
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 0.4rem 0.7rem;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.15s;
-    position: relative;
-  }
-  .percentile-toggles button.active {
-    color: var(--text);
-  }
+  .toggle-group button.active { background: var(--border); color: var(--text); }
+  .toggle-group button:hover:not(.active) { color: var(--text); }
+  .percentile-toggles button { font-family: var(--mono); font-weight: 600; font-size: 0.7rem; position: relative; }
+  .percentile-toggles button.active { color: var(--text); }
   .percentile-toggles button.active::after {
-    content: '';
-    position: absolute;
-    bottom: 2px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 60%;
-    height: 2px;
-    border-radius: 1px;
+    content: ''; position: absolute; bottom: 2px; left: 50%; transform: translateX(-50%);
+    width: 60%; height: 2px; border-radius: 1px;
   }
-  .percentile-toggles button[data-p="50"].active::after { background: #58a6ff; }
-  .percentile-toggles button[data-p="65"].active::after { background: #3fb950; }
-  .percentile-toggles button[data-p="85"].active::after { background: #d29922; }
-  .percentile-toggles button[data-p="95"].active::after { background: #f85149; }
+  .percentile-toggles button[data-p="50"].active::after { background: var(--p50); }
+  .percentile-toggles button[data-p="65"].active::after { background: var(--p65); }
+  .percentile-toggles button[data-p="85"].active::after { background: var(--p85); }
+  .percentile-toggles button[data-p="95"].active::after { background: var(--p95); }
+  .dot-indicator { width: 7px; height: 7px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+
+  .slider-wrap {
+    display: flex; align-items: center; gap: 0.5rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.3rem 0.75rem;
+  }
+  .slider-wrap label { font-size: 0.7rem; color: var(--text-dim); white-space: nowrap; }
+  .slider-wrap input[type=range] {
+    -webkit-appearance: none; width: 120px; height: 4px;
+    background: var(--border); border-radius: 2px; outline: none;
+  }
+  .slider-wrap input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 14px; height: 14px;
+    background: var(--text); border-radius: 50%; cursor: pointer;
+  }
+  .slider-wrap input[type=range]::-moz-range-thumb {
+    width: 14px; height: 14px; background: var(--text); border-radius: 50%;
+    cursor: pointer; border: none;
+  }
+  .slider-val { font-family: var(--mono); font-size: 0.75rem; font-weight: 600; min-width: 3.5em; text-align: right; }
 
   .chart-container {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1.5rem;
-    position: relative;
-    margin-bottom: 1.5rem;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.2rem; position: relative; margin-bottom: 1rem;
   }
-
-  canvas {
-    width: 100%;
-    display: block;
-  }
-
+  canvas { width: 100%; display: block; cursor: crosshair; }
   .tooltip {
-    position: absolute;
-    pointer-events: none;
-    background: #1c2128;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 0.65rem 0.85rem;
-    font-size: 0.78rem;
-    line-height: 1.5;
-    opacity: 0;
-    transition: opacity 0.12s;
-    z-index: 10;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
-    white-space: nowrap;
+    position: absolute; pointer-events: none; background: var(--surface2);
+    border: 1px solid var(--border-hi); border-radius: 8px;
+    padding: 0.6rem 0.8rem; font-size: 0.75rem; line-height: 1.5;
+    opacity: 0; transition: opacity 0.1s; z-index: 10;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5); white-space: nowrap;
   }
   .tooltip.visible { opacity: 1; }
-  .tooltip .tt-date { color: var(--text-dim); font-size: 0.72rem; }
-  .tooltip .tt-value { font-weight: 700; font-family: var(--mono); font-size: 1rem; }
+  .tooltip .tt-date { color: var(--text-dim); font-size: 0.68rem; }
+  .tooltip .tt-value { font-weight: 700; font-family: var(--mono); font-size: 0.95rem; }
   .tooltip .tt-size { font-weight: 500; }
-
-  .stats-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1.5rem;
-  }
-  .stat-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 1rem;
-  }
-  .stat-card .label {
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    margin-bottom: 0.3rem;
-  }
-  .stat-card .value {
-    font-family: var(--mono);
-    font-size: 1.4rem;
-    font-weight: 600;
-  }
-  .stat-card .sub {
-    font-size: 0.7rem;
-    color: var(--text-dim);
-    margin-top: 0.15rem;
-  }
+  .tooltip .tt-hint { margin-top: 0.3rem; font-size: 0.62rem; color: var(--text-xdim); border-top: 1px solid var(--border); padding-top: 0.25rem; }
 
   .legend-strip {
-    display: flex;
-    gap: 1.5rem;
-    justify-content: center;
-    font-size: 0.75rem;
-    color: var(--text-dim);
-    margin-top: 0.75rem;
+    display: flex; gap: 1.2rem; justify-content: center;
+    font-size: 0.7rem; color: var(--text-dim); margin-bottom: 1.6rem;
   }
-  .legend-strip span {
-    display: flex;
-    align-items: center;
-    gap: 0.35rem;
+  .legend-strip span { display: flex; align-items: center; gap: 0.3rem; }
+
+  .quarterly-section h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.7rem; letter-spacing: -0.02em; }
+  .q-table-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); overflow-x: auto; margin-bottom: 1.5rem;
+  }
+  .q-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  .q-table thead th {
+    background: var(--surface2); color: var(--text-dim); font-weight: 600;
+    text-transform: uppercase; font-size: 0.65rem; letter-spacing: 0.05em;
+    padding: 0.7rem 0.8rem; text-align: right; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  .q-table thead th:first-child { text-align: left; }
+  .q-table tbody td {
+    padding: 0.6rem 0.8rem; border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 0.78rem; text-align: right; font-weight: 500;
+  }
+  .q-table tbody td:first-child {
+    font-family: var(--font); font-weight: 600; text-align: left; color: var(--text);
+  }
+  .q-table tbody tr:last-child td { border-bottom: none; }
+  .q-table tbody tr:hover { background: rgba(88,166,255,0.04); }
+  .q-table .hl-85 { color: var(--p85); }
+  .q-table .hl-95 { color: var(--p95); }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+    display: none; align-items: center; justify-content: center; z-index: 100;
+    backdrop-filter: blur(4px);
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border-hi);
+    border-radius: 14px; padding: 1.6rem; width: 340px;
+    box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+    animation: modalIn 0.18s ease-out;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: none; } }
+  .modal h3 { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+  .modal .field { margin-bottom: 0.8rem; }
+  .modal .field label {
+    display: block; font-size: 0.7rem; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.3rem;
+  }
+  .modal .field label .req { color: var(--l-color); }
+  .modal .field input, .modal .field select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); font-family: var(--font); font-size: 0.85rem;
+    padding: 0.5rem 0.7rem; border-radius: 8px; outline: none;
+    transition: border-color 0.15s;
+  }
+  .modal .field input:focus, .modal .field select:focus { border-color: var(--p50); }
+  .modal .field select option { background: var(--bg); }
+  .modal .actions { display: flex; gap: 0.5rem; justify-content: flex-end; margin-top: 1.2rem; }
+  .modal .actions button {
+    font-family: var(--font); font-size: 0.8rem; font-weight: 500;
+    padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; border: none; transition: 0.12s;
+  }
+  .btn-cancel { background: var(--border); color: var(--text); }
+  .btn-cancel:hover { background: var(--border-hi); }
+  .btn-submit { background: var(--p50); color: #0e1117; font-weight: 600; }
+  .btn-submit:hover { filter: brightness(1.1); }
+  .field-error { border-color: var(--l-color) !important; }
+
+  /* Delete popup */
+  .del-popup {
+    position: absolute; z-index: 20;
+    background: var(--surface2); border: 1px solid var(--border-hi);
+    border-radius: 10px; padding: 0.65rem 0.85rem;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+    display: none; flex-direction: column; gap: 0.45rem;
+    animation: modalIn 0.12s ease-out;
+  }
+  .del-popup.open { display: flex; }
+  .del-popup p { font-size: 0.73rem; color: var(--text-dim); white-space: nowrap; }
+  .del-popup .dp-btns { display: flex; gap: 0.35rem; }
+  .del-popup button {
+    font-family: var(--font); font-size: 0.7rem; font-weight: 600;
+    padding: 0.28rem 0.65rem; border-radius: 6px; cursor: pointer; border: none;
+  }
+  .dp-yes { background: var(--l-color); color: #fff; }
+  .dp-no { background: var(--border); color: var(--text); }
+
+  @media (max-width: 700px) {
+    .controls { gap: 0.4rem; }
+    .slider-wrap input[type=range] { width: 70px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
   }
 </style>
 </head>
 <body>
 <div class="dashboard">
   <header>
-    <h1>Lead Time Scatterplot</h1>
-    <p>Dane realizacji zadań 2024–2025 &middot; 36 elementów</p>
+    <div>
+      <h1>Lead Time Scatterplot</h1>
+      <p id="subtitle">Dane realizacji zadań 2024–2025</p>
+    </div>
+    <button class="btn-add" id="btnAdd">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
+      Dodaj dane
+    </button>
   </header>
 
   <div class="stats-row" id="stats"></div>
 
   <div class="controls">
+    <span class="ctrl-label">Rozmiar</span>
     <div class="toggle-group" id="sizeToggles">
       <button class="active" data-size="all">Wszystkie</button>
       <button data-size="S"><span class="dot-indicator" style="background:var(--s-color)"></span>S</button>
       <button data-size="M"><span class="dot-indicator" style="background:var(--m-color)"></span>M</button>
       <button data-size="L"><span class="dot-indicator" style="background:var(--l-color)"></span>L</button>
     </div>
+    <span class="ctrl-label">Percentyle</span>
     <div class="percentile-toggles" id="pctToggles">
       <button data-p="50">P50</button>
       <button data-p="65">P65</button>
       <button data-p="85">P85</button>
       <button data-p="95">P95</button>
     </div>
+    <div class="slider-wrap">
+      <label>Okres</label>
+      <input type="range" id="weeksSlider" min="4" max="80" value="80">
+      <span class="slider-val" id="weeksVal">80 tyg</span>
+    </div>
   </div>
 
-  <div class="chart-container">
+  <div class="chart-container" id="chartWrap">
     <canvas id="chart"></canvas>
     <div class="tooltip" id="tooltip"></div>
+    <div class="del-popup" id="delPopup">
+      <p id="delText"></p>
+      <div class="dp-btns">
+        <button class="dp-yes" id="delYes">Usuń</button>
+        <button class="dp-no" id="delNo">Anuluj</button>
+      </div>
+    </div>
   </div>
 
   <div class="legend-strip">
     <span><span class="dot-indicator" style="background:var(--s-color)"></span> S — Small</span>
     <span><span class="dot-indicator" style="background:var(--m-color)"></span> M — Medium</span>
     <span><span class="dot-indicator" style="background:var(--l-color)"></span> L — Large</span>
+    <span><span class="dot-indicator" style="background:var(--no-color)"></span> Brak rozmiaru</span>
+  </div>
+
+  <div class="quarterly-section">
+    <h2>Statystyki kwartalne</h2>
+    <div class="q-table-wrap">
+      <table class="q-table">
+        <thead>
+          <tr><th>Kwartał</th><th>Zadania</th><th>Min</th><th>Max</th><th>Średnia</th><th>Mediana</th><th>P85</th><th>P95</th></tr>
+        </thead>
+        <tbody id="qBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Add data modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>Dodaj punkt danych</h3>
+    <div class="field">
+      <label>Data ukończenia <span class="req">*</span></label>
+      <input type="date" id="addDate">
+    </div>
+    <div class="field">
+      <label>Czas realizacji (dni) <span class="req">*</span></label>
+      <input type="number" id="addLead" min="1" placeholder="np. 45">
+    </div>
+    <div class="field">
+      <label>Rozmiar <span style="color:var(--text-xdim)">(opcjonalny)</span></label>
+      <select id="addSize">
+        <option value="">— brak —</option>
+        <option value="S">S — Small</option>
+        <option value="M">M — Medium</option>
+        <option value="L">L — Large</option>
+      </select>
+    </div>
+    <div class="actions">
+      <button class="btn-cancel" id="modalCancel">Anuluj</button>
+      <button class="btn-submit" id="modalSubmit">Dodaj</button>
+    </div>
   </div>
 </div>
 
 <script>
-const DATA = [{"date":"2024-07-15","size":"S","leadTime":49},{"date":"2024-08-22","size":"S","leadTime":48},{"date":"2024-09-10","size":"S","leadTime":87},{"date":"2024-09-25","size":"M","leadTime":57},{"date":"2024-10-05","size":"M","leadTime":148},{"date":"2024-10-14","size":"S","leadTime":53},{"date":"2024-10-28","size":"S","leadTime":45},{"date":"2024-11-18","size":"M","leadTime":145},{"date":"2024-12-04","size":"L","leadTime":105},{"date":"2025-01-08","size":"S","leadTime":5},{"date":"2025-01-20","size":"L","leadTime":163},{"date":"2025-02-14","size":"S","leadTime":43},{"date":"2025-02-26","size":"M","leadTime":415},{"date":"2025-03-15","size":"L","leadTime":123},{"date":"2025-04-10","size":"M","leadTime":103},{"date":"2025-05-05","size":"L","leadTime":104},{"date":"2025-06-12","size":"L","leadTime":302},{"date":"2025-06-25","size":"L","leadTime":158},{"date":"2025-07-02","size":"L","leadTime":98},{"date":"2025-07-11","size":"S","leadTime":52},{"date":"2025-07-18","size":"M","leadTime":95},{"date":"2025-07-29","size":"S","leadTime":70},{"date":"2025-08-03","size":"M","leadTime":95},{"date":"2025-08-14","size":"M","leadTime":101},{"date":"2025-08-21","size":"M","leadTime":57},{"date":"2025-08-29","size":"M","leadTime":57},{"date":"2025-09-08","size":"S","leadTime":53},{"date":"2025-09-22","size":"L","leadTime":137},{"date":"2025-10-04","size":"S","leadTime":73},{"date":"2025-10-12","size":"M","leadTime":60},{"date":"2025-10-19","size":"S","leadTime":126},{"date":"2025-10-27","size":"M","leadTime":57},{"date":"2025-11-05","size":"L","leadTime":124},{"date":"2025-11-15","size":"M","leadTime":75},{"date":"2025-11-25","size":"M","leadTime":89},{"date":"2025-12-10","size":"S","leadTime":44}];
+// ═══════════════════════════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════════════════════════
+let DATA = [
+  {date:"2024-07-15",size:"S",leadTime:49},{date:"2024-08-22",size:"S",leadTime:48},
+  {date:"2024-09-10",size:"S",leadTime:87},{date:"2024-09-25",size:"M",leadTime:57},
+  {date:"2024-10-05",size:"M",leadTime:148},{date:"2024-10-14",size:"S",leadTime:53},
+  {date:"2024-10-28",size:"S",leadTime:45},{date:"2024-11-18",size:"M",leadTime:145},
+  {date:"2024-12-04",size:"L",leadTime:105},{date:"2025-01-08",size:"S",leadTime:5},
+  {date:"2025-01-20",size:"L",leadTime:163},{date:"2025-02-14",size:"S",leadTime:43},
+  {date:"2025-02-26",size:"M",leadTime:415},{date:"2025-03-15",size:"L",leadTime:123},
+  {date:"2025-04-10",size:"M",leadTime:103},{date:"2025-05-05",size:"L",leadTime:104},
+  {date:"2025-06-12",size:"L",leadTime:302},{date:"2025-06-25",size:"L",leadTime:158},
+  {date:"2025-07-02",size:"L",leadTime:98},{date:"2025-07-11",size:"S",leadTime:52},
+  {date:"2025-07-18",size:"M",leadTime:95},{date:"2025-07-29",size:"S",leadTime:70},
+  {date:"2025-08-03",size:"M",leadTime:95},{date:"2025-08-14",size:"M",leadTime:101},
+  {date:"2025-08-21",size:"M",leadTime:57},{date:"2025-08-29",size:"M",leadTime:57},
+  {date:"2025-09-08",size:"S",leadTime:53},{date:"2025-09-22",size:"L",leadTime:137},
+  {date:"2025-10-04",size:"S",leadTime:73},{date:"2025-10-12",size:"M",leadTime:60},
+  {date:"2025-10-19",size:"S",leadTime:126},{date:"2025-10-27",size:"M",leadTime:57},
+  {date:"2025-11-05",size:"L",leadTime:124},{date:"2025-11-15",size:"M",leadTime:75},
+  {date:"2025-11-25",size:"M",leadTime:89},{date:"2025-12-10",size:"S",leadTime:44}
+];
 
-const COLORS = { S: '#3fb950', M: '#d29922', L: '#f85149' };
-const PCT_COLORS = { 50: '#58a6ff', 65: '#3fb950', 85: '#d29922', 95: '#f85149' };
+const COLORS = { S:'#3fb950', M:'#d29922', L:'#f85149', '':'#6e7681' };
+const PCT_COLORS = { 50:'#58a6ff', 65:'#3fb950', 85:'#d29922', 95:'#f85149' };
 const MONTHS_PL = ['Sty','Lut','Mar','Kwi','Maj','Cze','Lip','Sie','Wrz','Paź','Lis','Gru'];
+const Q_NAMES = {1:'Q1',2:'Q2',3:'Q3',4:'Q4'};
 
 let activeSize = 'all';
 let activePcts = new Set();
+let weeksBack = 80;
+let deleteTargetIdx = null;
 
-function percentile(arr, p) {
-  const s = [...arr].sort((a, b) => a - b);
+// ═══════════════════════════════════════════════════════════
+//  UTILS
+// ═══════════════════════════════════════════════════════════
+function pctl(arr, p) {
+  if (!arr.length) return 0;
+  const s = [...arr].sort((a,b) => a - b);
   const i = (p / 100) * (s.length - 1);
   const lo = Math.floor(i), hi = Math.ceil(i);
   return lo === hi ? s[lo] : s[lo] + (s[hi] - s[lo]) * (i - lo);
 }
 
-function getFiltered() {
-  return activeSize === 'all' ? DATA : DATA.filter(d => d.size === activeSize);
+function getCutoff() {
+  const allDates = DATA.map(d => new Date(d.date).getTime());
+  const latest = Math.max(...allDates);
+  return latest - weeksBack * 7 * 86400000;
 }
 
+function getVisible() {
+  const cutoff = getCutoff();
+  return DATA.filter(d => new Date(d.date).getTime() >= cutoff);
+}
+
+function getFiltered() {
+  const vis = getVisible();
+  return activeSize === 'all' ? vis : vis.filter(d => d.size === activeSize);
+}
+
+// ═══════════════════════════════════════════════════════════
+//  STATS
+// ═══════════════════════════════════════════════════════════
 function renderStats() {
   const f = getFiltered();
   const vals = f.map(d => d.leadTime);
-  const avg = (vals.reduce((a, b) => a + b, 0) / vals.length).toFixed(0);
-  const med = percentile(vals, 50).toFixed(0);
-  const mn = Math.min(...vals);
-  const mx = Math.max(...vals);
+  const n = f.length;
+  const avg = n ? (vals.reduce((a,b) => a+b, 0) / n).toFixed(0) : '—';
+  const med = n ? pctl(vals, 50).toFixed(0) : '—';
+  const mn = n ? Math.min(...vals) : '—';
+  const mx = n ? Math.max(...vals) : '—';
+  const tag = activeSize === 'all' ? 'wszystkie' : 'rozmiar ' + activeSize;
   document.getElementById('stats').innerHTML = `
-    <div class="stat-card"><div class="label">Liczba zadań</div><div class="value">${f.length}</div><div class="sub">${activeSize === 'all' ? 'S+M+L' : 'Rozmiar ' + activeSize}</div></div>
-    <div class="stat-card"><div class="label">Średnia</div><div class="value">${avg} dni</div></div>
-    <div class="stat-card"><div class="label">Mediana</div><div class="value">${med} dni</div></div>
-    <div class="stat-card"><div class="label">Zakres</div><div class="value">${mn}–${mx}</div><div class="sub">min–max dni</div></div>
+    <div class="stat-card"><div class="label">Zadania</div><div class="value">${n}</div><div class="sub">${tag}</div></div>
+    <div class="stat-card"><div class="label">Średnia</div><div class="value">${avg}${n?' dni':''}</div></div>
+    <div class="stat-card"><div class="label">Mediana</div><div class="value">${med}${n?' dni':''}</div></div>
+    <div class="stat-card"><div class="label">Zakres</div><div class="value">${n?mn+'–'+mx:'—'}</div><div class="sub">min–max</div></div>
   `;
+  const vis = getVisible();
+  document.getElementById('subtitle').textContent = `Dane realizacji zadań · ${vis.length} elementów w okresie ${weeksBack} tyg.`;
 }
 
-// Chart
+// ═══════════════════════════════════════════════════════════
+//  CHART
+// ═══════════════════════════════════════════════════════════
 const canvas = document.getElementById('chart');
-const ctx = canvas.getContext('2d');
-const tooltip = document.getElementById('tooltip');
+const ctx2d = canvas.getContext('2d');
+const ttEl = document.getElementById('tooltip');
 const DPR = window.devicePixelRatio || 1;
+const PAD = { top: 28, right: 100, bottom: 48, left: 58 };
+let CW, CH, pW, pH;
+let drawnPts = [];
 
-const PAD = { top: 30, right: 30, bottom: 50, left: 60 };
-let W, H, plotW, plotH;
-let points = [];
-
-function resize() {
-  const rect = canvas.parentElement.getBoundingClientRect();
-  W = rect.width - 3 * 16; // padding
-  H = Math.min(460, W * 0.52);
-  canvas.width = W * DPR;
-  canvas.height = H * DPR;
-  canvas.style.width = W + 'px';
-  canvas.style.height = H + 'px';
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  plotW = W - PAD.left - PAD.right;
-  plotH = H - PAD.top - PAD.bottom;
+function resizeCanvas() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  CW = r.width - 2.4 * 16;
+  CH = Math.min(470, Math.max(300, CW * 0.48));
+  canvas.width = CW * DPR; canvas.height = CH * DPR;
+  canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
+  ctx2d.setTransform(DPR, 0, 0, DPR, 0, 0);
+  pW = CW - PAD.left - PAD.right;
+  pH = CH - PAD.top - PAD.bottom;
 }
 
 function draw() {
-  ctx.clearRect(0, 0, W, H);
+  const c = ctx2d;
+  c.clearRect(0, 0, CW, CH);
+
+  const visible = getVisible();
   const filtered = getFiltered();
-  const allTimes = DATA.map(d => new Date(d.date).getTime());
-  const minT = Math.min(...allTimes);
-  const maxT = Math.max(...allTimes);
-  const maxLT = Math.max(...DATA.map(d => d.leadTime)) * 1.08;
+  drawnPts = [];
 
-  const xScale = t => PAD.left + ((t - minT) / (maxT - minT)) * plotW;
-  const yScale = v => PAD.top + plotH - (v / maxLT) * plotH;
-
-  // Grid
-  ctx.strokeStyle = 'rgba(48,54,61,0.5)';
-  ctx.lineWidth = 0.5;
-  const yTicks = 5;
-  for (let i = 0; i <= yTicks; i++) {
-    const v = (maxLT / yTicks) * i;
-    const y = yScale(v);
-    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
-    ctx.fillStyle = '#8b949e';
-    ctx.font = '11px "JetBrains Mono", monospace';
-    ctx.textAlign = 'right';
-    ctx.fillText(Math.round(v), PAD.left - 10, y + 4);
+  if (!visible.length) {
+    c.fillStyle = '#8b949e'; c.font = '13px "DM Sans",sans-serif';
+    c.textAlign = 'center'; c.fillText('Brak danych w wybranym okresie', CW / 2, CH / 2);
+    return;
   }
 
-  // Y axis label
-  ctx.save();
-  ctx.translate(14, PAD.top + plotH / 2);
-  ctx.rotate(-Math.PI / 2);
-  ctx.fillStyle = '#8b949e';
-  ctx.font = '11px "DM Sans", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('Czas realizacji (dni)', 0, 0);
-  ctx.restore();
+  const stamps = visible.map(d => new Date(d.date).getTime());
+  const tMin = Math.min(...stamps), tMax = Math.max(...stamps);
+  const tRange = tMax - tMin || 1;
+  const ltMax = Math.max(...visible.map(d => d.leadTime)) * 1.1;
 
-  // X axis months
-  const startDate = new Date(minT);
-  const endDate = new Date(maxT);
-  let d = new Date(startDate.getFullYear(), startDate.getMonth(), 1);
-  ctx.fillStyle = '#8b949e';
-  ctx.font = '11px "DM Sans", sans-serif';
-  ctx.textAlign = 'center';
-  while (d <= endDate) {
-    const x = xScale(d.getTime());
-    if (x >= PAD.left && x <= W - PAD.right) {
-      ctx.beginPath();
-      ctx.strokeStyle = 'rgba(48,54,61,0.3)';
-      ctx.moveTo(x, PAD.top); ctx.lineTo(x, PAD.top + plotH); ctx.stroke();
-      const label = MONTHS_PL[d.getMonth()] + (d.getMonth() === 0 ? '\n' + d.getFullYear() : '');
-      ctx.fillText(label, x, H - PAD.bottom + 18);
-      if (d.getMonth() === 0) {
-        ctx.fillText(d.getFullYear(), x, H - PAD.bottom + 32);
-      }
+  const sx = t => PAD.left + ((t - tMin) / tRange) * pW;
+  const sy = v => PAD.top + pH - (v / ltMax) * pH;
+
+  // ── grid Y ──
+  c.strokeStyle = 'rgba(48,54,61,0.5)'; c.lineWidth = 0.5;
+  const yN = 5;
+  for (let i = 0; i <= yN; i++) {
+    const v = (ltMax / yN) * i, y = sy(v);
+    c.beginPath(); c.moveTo(PAD.left, y); c.lineTo(PAD.left + pW, y); c.stroke();
+    c.fillStyle = '#8b949e'; c.font = '10px "JetBrains Mono",monospace';
+    c.textAlign = 'right'; c.fillText(Math.round(v), PAD.left - 10, y + 4);
+  }
+
+  // ── Y label ──
+  c.save(); c.translate(12, PAD.top + pH / 2); c.rotate(-Math.PI / 2);
+  c.fillStyle = '#8b949e'; c.font = '10px "DM Sans",sans-serif';
+  c.textAlign = 'center'; c.fillText('Czas realizacji (dni)', 0, 0);
+  c.restore();
+
+  // ── X months ──
+  const step = tRange > 150 * 864e5 ? 2 : 1;
+  let md = new Date(new Date(tMin).getFullYear(), new Date(tMin).getMonth(), 1);
+  const endD = new Date(tMax);
+  c.textAlign = 'center';
+  while (md <= endD) {
+    const x = sx(md.getTime());
+    if (x >= PAD.left && x <= PAD.left + pW) {
+      c.beginPath(); c.strokeStyle = 'rgba(48,54,61,0.3)';
+      c.moveTo(x, PAD.top); c.lineTo(x, PAD.top + pH); c.stroke();
+      c.fillStyle = '#8b949e'; c.font = '10px "DM Sans",sans-serif';
+      c.fillText(MONTHS_PL[md.getMonth()], x, CH - PAD.bottom + 15);
+      if (md.getMonth() === 0) c.fillText(md.getFullYear(), x, CH - PAD.bottom + 28);
     }
-    d.setMonth(d.getMonth() + 2);
+    md.setMonth(md.getMonth() + step);
   }
 
-  // Percentile lines
-  const filteredVals = filtered.map(d => d.leadTime);
-  activePcts.forEach(p => {
-    const val = percentile(filteredVals, p);
-    const y = yScale(val);
-    ctx.strokeStyle = PCT_COLORS[p];
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([6, 4]);
-    ctx.beginPath(); ctx.moveTo(PAD.left, y); ctx.lineTo(W - PAD.right, y); ctx.stroke();
-    ctx.setLineDash([]);
+  // ── percentile lines ──
+  const fVals = filtered.map(d => d.leadTime);
+  if (fVals.length) {
+    // Sort active percentiles for label stacking
+    const sorted = [...activePcts].sort((a,b) => a - b);
+    const labelPositions = [];
 
-    // Label
-    ctx.fillStyle = PCT_COLORS[p];
-    ctx.font = '600 11px "JetBrains Mono", monospace';
-    ctx.textAlign = 'left';
-    ctx.fillText(`P${p}: ${val.toFixed(0)} dni`, W - PAD.right + 4, y + 4);
-  });
+    sorted.forEach(p => {
+      const val = pctl(fVals, p);
+      const y = sy(val);
 
-  // Points
-  points = [];
-  // Draw dimmed points first (non-filtered)
-  if (activeSize !== 'all') {
-    DATA.filter(d => d.size !== activeSize).forEach(d => {
-      const t = new Date(d.date).getTime();
-      const x = xScale(t);
-      const y = yScale(d.leadTime);
-      ctx.beginPath();
-      ctx.arc(x, y, 5, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(48,54,61,0.5)';
-      ctx.fill();
+      c.strokeStyle = PCT_COLORS[p]; c.lineWidth = 1.5;
+      c.setLineDash([6, 4]);
+      c.beginPath(); c.moveTo(PAD.left, y); c.lineTo(PAD.left + pW, y); c.stroke();
+      c.setLineDash([]);
+
+      // smart label placement — avoid overlap
+      let labelY = y + 4;
+      for (const prev of labelPositions) {
+        if (Math.abs(labelY - prev) < 14) labelY = prev + 14;
+      }
+      labelPositions.push(labelY);
+
+      c.fillStyle = PCT_COLORS[p];
+      c.font = '600 10px "JetBrains Mono",monospace';
+      c.textAlign = 'left';
+      c.fillText(`P${p}: ${val.toFixed(1)} dni`, PAD.left + pW + 6, labelY);
     });
   }
 
-  // Active points
-  filtered.forEach(d => {
-    const t = new Date(d.date).getTime();
-    const x = xScale(t);
-    const y = yScale(d.leadTime);
-    const color = COLORS[d.size];
+  // ── dots: dimmed (non-matching) ──
+  if (activeSize !== 'all') {
+    visible.filter(d => d.size !== activeSize).forEach(d => {
+      const x = sx(new Date(d.date).getTime()), y = sy(d.leadTime);
+      c.beginPath(); c.arc(x, y, 4, 0, Math.PI * 2);
+      c.fillStyle = 'rgba(48,54,61,0.45)'; c.fill();
+    });
+  }
 
-    // Glow
-    ctx.beginPath();
-    ctx.arc(x, y, 10, 0, Math.PI * 2);
-    const grad = ctx.createRadialGradient(x, y, 2, x, y, 10);
-    grad.addColorStop(0, color + '40');
-    grad.addColorStop(1, 'transparent');
-    ctx.fillStyle = grad;
-    ctx.fill();
+  // ── dots: active ──
+  filtered.forEach(item => {
+    const x = sx(new Date(item.date).getTime()), y = sy(item.leadTime);
+    const col = COLORS[item.size] || COLORS[''];
 
-    // Dot
-    ctx.beginPath();
-    ctx.arc(x, y, 5, 0, Math.PI * 2);
-    ctx.fillStyle = color;
-    ctx.fill();
-    ctx.strokeStyle = color + '80';
-    ctx.lineWidth = 1;
-    ctx.stroke();
+    // glow
+    const g = c.createRadialGradient(x, y, 2, x, y, 12);
+    g.addColorStop(0, col + '30'); g.addColorStop(1, 'transparent');
+    c.beginPath(); c.arc(x, y, 12, 0, Math.PI * 2); c.fillStyle = g; c.fill();
 
-    points.push({ x, y, d });
+    // dot
+    c.beginPath(); c.arc(x, y, 5, 0, Math.PI * 2);
+    c.fillStyle = col; c.fill();
+    c.strokeStyle = col + '55'; c.lineWidth = 1; c.stroke();
+
+    drawnPts.push({ x, y, item, idx: DATA.indexOf(item) });
   });
 }
 
-// Tooltip
+// ═══════════════════════════════════════════════════════════
+//  TOOLTIP + DELETE
+// ═══════════════════════════════════════════════════════════
+let hovered = null;
+
 canvas.addEventListener('mousemove', e => {
-  const rect = canvas.getBoundingClientRect();
-  const mx = e.clientX - rect.left;
-  const my = e.clientY - rect.top;
-
-  let closest = null, minDist = 20;
-  points.forEach(p => {
-    const dist = Math.hypot(p.x - mx, p.y - my);
-    if (dist < minDist) { minDist = dist; closest = p; }
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bestD = 24;
+  drawnPts.forEach(p => {
+    const d = Math.hypot(p.x - mx, p.y - my);
+    if (d < bestD) { bestD = d; best = p; }
   });
-
-  if (closest) {
-    const d = closest.d;
-    const dateObj = new Date(d.date);
-    const dateStr = dateObj.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' });
-    tooltip.innerHTML = `
-      <div class="tt-date">${dateStr}</div>
-      <div class="tt-value">${d.leadTime} dni</div>
-      <div class="tt-size" style="color:${COLORS[d.size]}">Rozmiar: ${d.size}</div>
-    `;
-    tooltip.classList.add('visible');
-
-    let tx = closest.x + 16;
-    let ty = closest.y - 10;
-    if (tx + 160 > W) tx = closest.x - 170;
+  hovered = best;
+  if (best) {
+    const it = best.item;
+    const ds = new Date(it.date).toLocaleDateString('pl-PL', { day:'numeric', month:'long', year:'numeric' });
+    const sn = it.size || 'brak';
+    const col = COLORS[it.size] || COLORS[''];
+    ttEl.innerHTML = `<div class="tt-date">${ds}</div><div class="tt-value">${it.leadTime} dni</div><div class="tt-size" style="color:${col}">Rozmiar: ${sn}</div><div class="tt-hint">PPM → usuń punkt</div>`;
+    ttEl.classList.add('visible');
+    let tx = best.x + 16, ty = best.y - 20;
+    if (tx + 180 > CW) tx = best.x - 190;
     if (ty < 0) ty = 10;
-    tooltip.style.left = tx + 'px';
-    tooltip.style.top = ty + 'px';
+    ttEl.style.left = tx + 'px'; ttEl.style.top = ty + 'px';
+    canvas.style.cursor = 'pointer';
   } else {
-    tooltip.classList.remove('visible');
+    ttEl.classList.remove('visible');
+    canvas.style.cursor = 'crosshair';
   }
 });
-canvas.addEventListener('mouseleave', () => tooltip.classList.remove('visible'));
+canvas.addEventListener('mouseleave', () => { ttEl.classList.remove('visible'); hovered = null; canvas.style.cursor = 'crosshair'; });
 
-// Controls
+// Right-click delete
+const dpEl = document.getElementById('delPopup');
+canvas.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (!hovered) return;
+  deleteTargetIdx = hovered.idx;
+  const it = hovered.item;
+  document.getElementById('delText').textContent = `Usunąć: ${it.leadTime} dni (${it.size || '—'}) ?`;
+  let px = hovered.x + 10, py = hovered.y - 10;
+  if (px + 200 > CW) px = hovered.x - 210;
+  dpEl.style.left = px + 'px'; dpEl.style.top = py + 'px';
+  dpEl.classList.add('open');
+  ttEl.classList.remove('visible');
+});
+document.getElementById('delYes').addEventListener('click', () => {
+  if (deleteTargetIdx !== null && deleteTargetIdx >= 0) {
+    DATA.splice(deleteTargetIdx, 1);
+    deleteTargetIdx = null;
+    dpEl.classList.remove('open');
+    refreshAll();
+  }
+});
+document.getElementById('delNo').addEventListener('click', () => { dpEl.classList.remove('open'); deleteTargetIdx = null; });
+document.addEventListener('click', e => {
+  if (!dpEl.contains(e.target) && e.target !== canvas) { dpEl.classList.remove('open'); deleteTargetIdx = null; }
+});
+
+// ═══════════════════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════════════════
 document.getElementById('sizeToggles').addEventListener('click', e => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-  activeSize = btn.dataset.size;
-  document.querySelectorAll('#sizeToggles button').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderStats();
-  draw();
+  const b = e.target.closest('button'); if (!b) return;
+  activeSize = b.dataset.size;
+  document.querySelectorAll('#sizeToggles button').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  refreshAll();
 });
 
 document.getElementById('pctToggles').addEventListener('click', e => {
-  const btn = e.target.closest('button');
-  if (!btn) return;
-  const p = parseInt(btn.dataset.p);
-  if (activePcts.has(p)) { activePcts.delete(p); btn.classList.remove('active'); }
-  else { activePcts.add(p); btn.classList.add('active'); }
+  const b = e.target.closest('button'); if (!b) return;
+  const p = +b.dataset.p;
+  if (activePcts.has(p)) { activePcts.delete(p); b.classList.remove('active'); }
+  else { activePcts.add(p); b.classList.add('active'); }
   draw();
 });
 
-// Init
-window.addEventListener('resize', () => { resize(); draw(); });
-resize();
-renderStats();
-draw();
+const slider = document.getElementById('weeksSlider');
+const sliderValEl = document.getElementById('weeksVal');
+slider.addEventListener('input', () => {
+  weeksBack = +slider.value;
+  sliderValEl.textContent = weeksBack + ' tyg';
+  refreshAll();
+});
+
+function recalcSlider() {
+  if (!DATA.length) return;
+  const dates = DATA.map(d => new Date(d.date).getTime());
+  const span = Math.max(...dates) - Math.min(...dates);
+  const mx = Math.ceil(span / (7 * 864e5)) + 4;
+  slider.max = mx;
+  if (weeksBack > mx) { weeksBack = mx; slider.value = mx; }
+  sliderValEl.textContent = weeksBack + ' tyg';
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ADD MODAL
+// ═══════════════════════════════════════════════════════════
+const modal = document.getElementById('modal');
+const addDateEl = document.getElementById('addDate');
+const addLeadEl = document.getElementById('addLead');
+const addSizeEl = document.getElementById('addSize');
+
+document.getElementById('btnAdd').addEventListener('click', () => {
+  addDateEl.value = ''; addLeadEl.value = ''; addSizeEl.value = '';
+  addDateEl.classList.remove('field-error'); addLeadEl.classList.remove('field-error');
+  modal.classList.add('open');
+  setTimeout(() => addDateEl.focus(), 50);
+});
+document.getElementById('modalCancel').addEventListener('click', () => modal.classList.remove('open'));
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') modal.classList.remove('open'); });
+
+document.getElementById('modalSubmit').addEventListener('click', () => {
+  addDateEl.classList.remove('field-error');
+  addLeadEl.classList.remove('field-error');
+  let ok = true;
+  if (!addDateEl.value) { addDateEl.classList.add('field-error'); ok = false; }
+  if (!addLeadEl.value || +addLeadEl.value < 1) { addLeadEl.classList.add('field-error'); ok = false; }
+  if (!ok) return;
+  DATA.push({ date: addDateEl.value, size: addSizeEl.value, leadTime: +addLeadEl.value });
+  DATA.sort((a, b) => new Date(a.date) - new Date(b.date));
+  modal.classList.remove('open');
+  recalcSlider();
+  refreshAll();
+});
+
+// ═══════════════════════════════════════════════════════════
+//  QUARTERLY TABLE
+// ═══════════════════════════════════════════════════════════
+function renderQuarterly() {
+  const visible = getVisible();
+  const buckets = {};
+  visible.forEach(d => {
+    const dt = new Date(d.date);
+    const q = Math.ceil((dt.getMonth() + 1) / 3);
+    const key = `${dt.getFullYear()} ${Q_NAMES[q]}`;
+    const sortKey = dt.getFullYear() * 10 + q;
+    if (!buckets[key]) buckets[key] = { vals: [], sort: sortKey };
+    buckets[key].vals.push(d.leadTime);
+  });
+
+  const body = document.getElementById('qBody');
+  const keys = Object.keys(buckets).sort((a, b) => buckets[a].sort - buckets[b].sort);
+
+  if (!keys.length) {
+    body.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--text-dim);padding:1.5rem;">Brak danych</td></tr>';
+    return;
+  }
+
+  body.innerHTML = keys.map(k => {
+    const v = buckets[k].vals;
+    const n = v.length;
+    return `<tr>
+      <td>${k}</td><td>${n}</td>
+      <td>${Math.min(...v)}</td><td>${Math.max(...v)}</td>
+      <td>${(v.reduce((a,b)=>a+b,0)/n).toFixed(1)}</td>
+      <td>${pctl(v,50).toFixed(1)}</td>
+      <td class="hl-85">${pctl(v,85).toFixed(1)}</td>
+      <td class="hl-95">${pctl(v,95).toFixed(1)}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MASTER REFRESH
+// ═══════════════════════════════════════════════════════════
+function refreshAll() { renderStats(); draw(); renderQuarterly(); }
+
+window.addEventListener('resize', () => { resizeCanvas(); draw(); });
+recalcSlider();
+resizeCanvas();
+refreshAll();
 </script>
 </body>
 </html>
