@@ -217,6 +217,16 @@
   .dp-yes { background: var(--l-color); color: #fff; }
   .dp-no { background: var(--border); color: var(--text); }
 
+  .btn-qoverlay {
+    background: var(--surface); border: 1px solid var(--border); color: var(--text-dim);
+    font-family: var(--font); font-size: 0.75rem; font-weight: 500;
+    padding: 0.35rem 0.75rem; border-radius: 8px; cursor: pointer;
+    display: flex; align-items: center; gap: 0.35rem; transition: all 0.15s;
+  }
+  .btn-qoverlay:hover { color: var(--text); border-color: var(--border-hi); }
+  .btn-qoverlay.active { background: var(--border); color: var(--text); border-color: var(--border-hi); }
+  .btn-qoverlay svg { width: 13px; height: 13px; opacity: 0.7; }
+
   @media (max-width: 700px) {
     .controls { gap: 0.4rem; }
     .slider-wrap input[type=range] { width: 70px; }
@@ -259,6 +269,10 @@
       <input type="range" id="weeksSlider" min="4" max="80" value="80">
       <span class="slider-val" id="weeksVal">80 tyg</span>
     </div>
+    <button class="btn-qoverlay" id="btnQOverlay" title="Pokaż statystyki kwartalne na wykresie">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="1" y="3" width="6" height="10" rx="1"/><rect x="9" y="3" width="6" height="10" rx="1"/><line x1="4" y1="6" x2="4" y2="10"/><line x1="12" y1="6" x2="12" y2="10"/></svg>
+      Kwartalnie
+    </button>
   </div>
 
   <div class="chart-container" id="chartWrap">
@@ -355,6 +369,7 @@ let activeSize = 'all';
 let activePcts = new Set();
 let weeksBack = 80;
 let deleteTargetIdx = null;
+let showQOverlay = false;
 
 // ═══════════════════════════════════════════════════════════
 //  UTILS
@@ -512,6 +527,82 @@ function draw() {
     });
   }
 
+  // ── quarterly overlay ──
+  if (showQOverlay) {
+    const Q_STAT_COLORS = {
+      min:    { color: '#8b949e', dash: [2, 3] },
+      max:    { color: '#8b949e', dash: [2, 3] },
+      avg:    { color: '#58a6ff', dash: [4, 3] },
+      median: { color: '#a371f7', dash: [4, 3] },
+      p85:    { color: '#d29922', dash: [6, 3] },
+      p95:    { color: '#f85149', dash: [6, 3] }
+    };
+
+    // bucket filtered data by quarter
+    const qBuckets = {};
+    filtered.forEach(d => {
+      const dt = new Date(d.date);
+      const q = Math.ceil((dt.getMonth() + 1) / 3);
+      const key = `${dt.getFullYear()}-${q}`;
+      if (!qBuckets[key]) qBuckets[key] = { vals: [], year: dt.getFullYear(), q };
+      qBuckets[key].vals.push(d.leadTime);
+    });
+
+    Object.values(qBuckets).forEach(bucket => {
+      if (!bucket.vals.length) return;
+      const v = bucket.vals;
+      const stats = {
+        min: Math.min(...v), max: Math.max(...v),
+        avg: v.reduce((a,b)=>a+b,0)/v.length,
+        median: pctl(v, 50), p85: pctl(v, 85), p95: pctl(v, 95)
+      };
+
+      // quarter X boundaries
+      const qStartMonth = (bucket.q - 1) * 3;
+      const qStart = new Date(bucket.year, qStartMonth, 1).getTime();
+      const qEnd = new Date(bucket.year, qStartMonth + 3, 0).getTime();
+      // clamp to visible range
+      const x1 = Math.max(sx(Math.max(qStart, tMin)), PAD.left);
+      const x2 = Math.min(sx(Math.min(qEnd, tMax)), PAD.left + pW);
+      if (x2 <= x1 + 5) return; // too narrow
+
+      // subtle quarter background band
+      c.fillStyle = 'rgba(88,166,255,0.025)';
+      c.fillRect(x1, PAD.top, x2 - x1, pH);
+
+      // draw each stat line within the quarter
+      const labelSlots = [];
+      Object.entries(stats).forEach(([name, val]) => {
+        const meta = Q_STAT_COLORS[name];
+        const y = sy(val);
+        if (y < PAD.top || y > PAD.top + pH) return;
+
+        c.strokeStyle = meta.color;
+        c.lineWidth = name === 'p85' || name === 'p95' ? 1.3 : 0.9;
+        c.setLineDash(meta.dash);
+        c.globalAlpha = 0.75;
+        c.beginPath(); c.moveTo(x1, y); c.lineTo(x2, y); c.stroke();
+        c.setLineDash([]);
+        c.globalAlpha = 1;
+
+        // right-side micro label (inside quarter)
+        const labelMap = { min:'min', max:'max', avg:'śr', median:'med', p85:'P85', p95:'P95' };
+        let ly = y + 3.5;
+        for (const prev of labelSlots) {
+          if (Math.abs(ly - prev) < 10) ly = prev + 10;
+        }
+        labelSlots.push(ly);
+
+        c.fillStyle = meta.color;
+        c.globalAlpha = 0.85;
+        c.font = '500 8px "JetBrains Mono",monospace';
+        c.textAlign = 'right';
+        c.fillText(`${labelMap[name]} ${val.toFixed(1)}`, x2 - 3, ly);
+        c.globalAlpha = 1;
+      });
+    });
+  }
+
   // ── dots: dimmed (non-matching) ──
   if (activeSize !== 'all') {
     visible.filter(d => d.size !== activeSize).forEach(d => {
@@ -625,6 +716,13 @@ slider.addEventListener('input', () => {
   weeksBack = +slider.value;
   sliderValEl.textContent = weeksBack + ' tyg';
   refreshAll();
+});
+
+const qOverlayBtn = document.getElementById('btnQOverlay');
+qOverlayBtn.addEventListener('click', () => {
+  showQOverlay = !showQOverlay;
+  qOverlayBtn.classList.toggle('active', showQOverlay);
+  draw();
 });
 
 function recalcSlider() {
