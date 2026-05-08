@@ -14,15 +14,30 @@
   --accent:#6dd5ed;--accent2:#2193b0;
   --p50:#58a6ff;--p85:#f0883e;--p95:#f85149;
   --green:#3fb950;--yellow:#d29922;--pink:#f778ba;
+  --grid-line:rgba(30,42,58,.7);--bar-alpha:.35;
   --font:'Space Grotesk',system-ui,sans-serif;--mono:'IBM Plex Mono',monospace;
+}
+html.light{
+  --bg:#f4f6f9;--surface:#fff;--surface2:#edf0f5;--surface3:#e2e7ef;
+  --border:#d0d7e0;--border-hi:#b8c2d0;
+  --text:#1a2233;--text-dim:#5a6a80;--text-xdim:#8a96a8;
+  --accent:#0d8ab5;--accent2:#1078a0;
+  --p50:#2070cc;--p85:#c56a10;--p95:#d03030;
+  --green:#1a8a38;--yellow:#a07010;--pink:#c05090;
+  --grid-line:rgba(0,0,0,.1);--bar-alpha:.45;
 }
 body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:1.8rem 1rem}
 .wrap{width:100%;max-width:1280px}
 
 /* Header */
-.hdr{margin-bottom:1.5rem}
+.hdr{margin-bottom:1.5rem;display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:.5rem}
 .hdr h1{font-size:1.6rem;font-weight:700;letter-spacing:-.04em;background:linear-gradient(135deg,#6dd5ed,#2193b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+html.light .hdr h1{background:linear-gradient(135deg,#0d8ab5,#065a7a);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
 .hdr p{color:var(--text-dim);font-size:.78rem;margin-top:.15rem}
+
+.theme-toggle{background:var(--surface);border:1px solid var(--border);color:var(--text-dim);width:38px;height:38px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.theme-toggle:hover{border-color:var(--border-hi);color:var(--text)}
+.theme-toggle svg{width:18px;height:18px}
 
 /* Controls */
 .ctrl-bar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1.2rem}
@@ -90,8 +105,14 @@ canvas{width:100%;display:block}
 <body>
 <div class="wrap">
   <div class="hdr">
-    <h1>Monte Carlo — Prognoza dostarczenia backlogu</h1>
-    <p>Symulacja 10 000 iteracji · dane historyczne throughputu w 2-tygodniowych sprintach</p>
+    <div>
+      <h1>Monte Carlo — Prognoza dostarczenia backlogu</h1>
+      <p>Symulacja 10 000 iteracji · dane historyczne throughputu w 2-tygodniowych sprintach</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" title="Przełącz jasny/ciemny motyw">
+      <svg id="iconSun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg id="iconMoon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="display:none"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
   </div>
 
   <div class="ctrl-bar">
@@ -170,6 +191,38 @@ canvas{width:100%;display:block}
 </div>
 
 <script>
+// ═══════════════════════════════════════════════════
+//  THEME
+// ═══════════════════════════════════════════════════
+let isDark = true;
+const themeBtn = document.getElementById('themeToggle');
+const iconSun = document.getElementById('iconSun');
+const iconMoon = document.getElementById('iconMoon');
+
+function applyTheme() {
+  document.documentElement.classList.toggle('light', !isDark);
+  iconSun.style.display = isDark ? 'block' : 'none';
+  iconMoon.style.display = isDark ? 'none' : 'block';
+  // Re-read CSS vars for canvas usage
+  const cs = getComputedStyle(document.documentElement);
+  T.text = cs.getPropertyValue('--text').trim();
+  T.dim = cs.getPropertyValue('--text-dim').trim();
+  T.xdim = cs.getPropertyValue('--text-xdim').trim();
+  T.grid = cs.getPropertyValue('--grid-line').trim();
+  T.p50 = cs.getPropertyValue('--p50').trim();
+  T.p85 = cs.getPropertyValue('--p85').trim();
+  T.p95 = cs.getPropertyValue('--p95').trim();
+  T.accent = cs.getPropertyValue('--accent').trim();
+  T.yellow = cs.getPropertyValue('--yellow').trim();
+  T.pink = cs.getPropertyValue('--pink').trim();
+  T.green = cs.getPropertyValue('--green').trim();
+  T.barA = parseFloat(cs.getPropertyValue('--bar-alpha').trim()) || 0.35;
+  if (simDates.length) renderAll();
+}
+const T = {}; // theme-derived colors for canvas
+
+themeBtn.addEventListener('click', () => { isDark = !isDark; applyTheme(); });
+
 // ═══════════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════════
@@ -311,14 +364,14 @@ function drawChart1() {
 
   // Bars
   const barW = Math.max(2, pW / nBins - 1);
+  const bA = T.barA;
   bins.forEach((count, i) => {
     const x = sx(i);
     const sprintVal = minS + i * binW;
-    const date = sprintToDate(sprintVal);
-    let col = 'rgba(109,213,237,.35)';
-    if (sprintVal >= p95) col = 'rgba(248,81,73,.35)';
-    else if (sprintVal >= p85) col = 'rgba(240,136,62,.35)';
-    else if (sprintVal >= p50) col = 'rgba(88,166,255,.35)';
+    let col = `rgba(109,213,237,${bA})`;
+    if (sprintVal >= p95) col = `rgba(248,81,73,${bA})`;
+    else if (sprintVal >= p85) col = `rgba(240,136,62,${bA})`;
+    else if (sprintVal >= p50) col = `rgba(88,166,255,${bA})`;
     c.fillStyle = col;
     c.fillRect(x, sy(count), barW, pH - (sy(count) - PAD.top));
   });
@@ -333,22 +386,22 @@ function drawChart1() {
     const d = sprintToDate(val);
     c.fillText(`${label}: ${fmtShort(d)}`, x, PAD.top - 6);
   };
-  drawPLine(p50, '#58a6ff', 'P50');
-  drawPLine(p85, '#f0883e', 'P85');
-  drawPLine(p95, '#f85149', 'P95');
+  drawPLine(p50, T.p50, 'P50');
+  drawPLine(p85, T.p85, 'P85');
+  drawPLine(p95, T.p95, 'P95');
 
   // Deadline line
   const dlSprints = (DEADLINE - startDate) / (sprintDays * 86400000);
   if (dlSprints >= minS && dlSprints <= maxS) {
     const dx = sx((dlSprints - minS) / binW);
-    c.strokeStyle = '#d29922'; c.lineWidth = 1.5; c.setLineDash([6, 4]);
+    c.strokeStyle = T.yellow; c.lineWidth = 1.5; c.setLineDash([6, 4]);
     c.beginPath(); c.moveTo(dx, PAD.top); c.lineTo(dx, PAD.top + pH); c.stroke(); c.setLineDash([]);
-    c.fillStyle = '#d29922'; c.font = '500 8px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+    c.fillStyle = T.yellow; c.font = '500 8px "IBM Plex Mono",monospace'; c.textAlign = 'center';
     c.fillText('31 VIII 2026', dx, PAD.top + pH + 12);
   }
 
   // X axis: sprint dates
-  c.fillStyle = '#6b7f99'; c.font = '8px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+  c.fillStyle = T.dim; c.font = '8px "IBM Plex Mono",monospace'; c.textAlign = 'center';
   const labelStep = Math.max(1, Math.floor(nBins / 8));
   for (let i = 0; i < nBins; i += labelStep) {
     const d = sprintToDate(minS + i * binW);
@@ -356,13 +409,13 @@ function drawChart1() {
   }
 
   // Y axis
-  c.fillStyle = '#6b7f99'; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'right';
+  c.fillStyle = T.dim; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
     const v = Math.round(maxBin / 4 * i);
     c.fillText(v, PAD.left - 8, sy(v) + 3);
   }
   c.save(); c.translate(12, PAD.top + pH / 2); c.rotate(-Math.PI / 2);
-  c.fillStyle = '#6b7f99'; c.font = '9px "Space Grotesk",sans-serif'; c.textAlign = 'center';
+  c.fillStyle = T.dim; c.font = '9px "Space Grotesk",sans-serif'; c.textAlign = 'center';
   c.fillText('Symulacje', 0, 0); c.restore();
 }
 
@@ -393,12 +446,13 @@ function drawChart2() {
   const sy = v => PAD.top + pH - (v / maxBin) * pH;
 
   const barW = Math.max(2, pW / nBins - 1);
+  const bA2 = T.barA;
   bins.forEach((count, i) => {
     const itemVal = minI + i * binW;
-    let col = 'rgba(109,213,237,.3)';
-    if (itemVal <= p50) col = 'rgba(248,81,73,.25)';
-    else if (itemVal <= p85) col = 'rgba(240,136,62,.3)';
-    else col = 'rgba(63,185,80,.3)';
+    let col = `rgba(109,213,237,${bA2})`;
+    if (itemVal <= p50) col = `rgba(248,81,73,${bA2-0.05})`;
+    else if (itemVal <= p85) col = `rgba(240,136,62,${bA2})`;
+    else col = `rgba(63,185,80,${bA2})`;
     c.fillStyle = col;
     c.fillRect(sx(i), sy(count), barW, pH - (sy(count) - PAD.top));
   });
@@ -412,16 +466,16 @@ function drawChart2() {
     c.fillStyle = col; c.font = '600 9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
     c.fillText(`${label}: ${Math.floor(val)} szt`, x, PAD.top - 6);
   };
-  drawPLine(p50, '#58a6ff', 'P50');
-  drawPLine(p85, '#f0883e', 'P85');
-  drawPLine(p95, '#f85149', 'P95');
+  drawPLine(p50, T.p50, 'P50');
+  drawPLine(p85, T.p85, 'P85');
+  drawPLine(p95, T.p95, 'P95');
 
   // Backlog line
   if (backlog >= minI && backlog <= maxI) {
     const bx = sxV(backlog);
-    c.strokeStyle = '#6dd5ed'; c.lineWidth = 2; c.setLineDash([6, 3]);
+    c.strokeStyle = T.accent; c.lineWidth = 2; c.setLineDash([6, 3]);
     c.beginPath(); c.moveTo(bx, PAD.top); c.lineTo(bx, PAD.top + pH); c.stroke(); c.setLineDash([]);
-    c.fillStyle = '#6dd5ed'; c.font = '600 9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+    c.fillStyle = T.accent; c.font = '600 9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
     c.fillText(`Backlog: ${backlog}`, bx, PAD.top + pH + 13);
   }
 
@@ -430,15 +484,15 @@ function drawChart2() {
     const effectiveBacklog = backlog + nwP85;
     if (effectiveBacklog >= minI && effectiveBacklog <= maxI) {
       const nx = sxV(effectiveBacklog);
-      c.strokeStyle = '#f778ba'; c.lineWidth = 1.5; c.setLineDash([4, 3]);
+      c.strokeStyle = T.pink; c.lineWidth = 1.5; c.setLineDash([4, 3]);
       c.beginPath(); c.moveTo(nx, PAD.top); c.lineTo(nx, PAD.top + pH); c.stroke(); c.setLineDash([]);
-      c.fillStyle = '#f778ba'; c.font = '500 8px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+      c.fillStyle = T.pink; c.font = '500 8px "IBM Plex Mono",monospace'; c.textAlign = 'center';
       c.fillText(`Backlog + nowa praca (P85): ${Math.round(effectiveBacklog)}`, nx, PAD.top + pH + 25);
     }
   }
 
   // X axis
-  c.fillStyle = '#6b7f99'; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+  c.fillStyle = T.dim; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
   const labelStep = Math.max(1, Math.floor(nBins / 8));
   for (let i = 0; i < nBins; i += labelStep) {
     c.fillText(Math.round(minI + i * binW), sx(i), h - PAD.bottom + 14);
@@ -446,13 +500,13 @@ function drawChart2() {
   c.fillText('szt', PAD.left + pW + 20, h - PAD.bottom + 14);
 
   // Y axis
-  c.fillStyle = '#6b7f99'; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'right';
+  c.fillStyle = T.dim; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'right';
   for (let i = 0; i <= 4; i++) {
     const v = Math.round(maxBin / 4 * i);
     c.fillText(v, PAD.left - 8, sy(v) + 3);
   }
   c.save(); c.translate(12, PAD.top + pH / 2); c.rotate(-Math.PI / 2);
-  c.fillStyle = '#6b7f99'; c.font = '9px "Space Grotesk",sans-serif'; c.textAlign = 'center';
+  c.fillStyle = T.dim; c.font = '9px "Space Grotesk",sans-serif'; c.textAlign = 'center';
   c.fillText('Symulacje', 0, 0); c.restore();
 }
 
@@ -525,6 +579,7 @@ function renderAll() {
 }
 
 window.addEventListener('resize', () => { if (simDates.length) renderAll(); });
+applyTheme(); // initialize T colors before first draw
 renderPills();
 runSim();
 </script>
