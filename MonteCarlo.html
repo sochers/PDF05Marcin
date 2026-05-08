@@ -1,1 +1,532 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monte Carlo — Prognoza dostarczenia backlogu</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#08090d;--surface:#10131a;--surface2:#171c27;--surface3:#1e2433;
+  --border:#222a3a;--border-hi:#2e3a52;
+  --text:#dde4f0;--text-dim:#6a7a94;--text-xdim:#3a4a62;
+  --accent:#6dd5ed;--accent2:#2193b0;
+  --p50:#58a6ff;--p85:#f0883e;--p95:#f85149;
+  --green:#3fb950;--yellow:#d29922;--pink:#f778ba;
+  --font:'Space Grotesk',system-ui,sans-serif;--mono:'IBM Plex Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:1.8rem 1rem}
+.wrap{width:100%;max-width:1280px}
 
+/* Header */
+.hdr{margin-bottom:1.5rem}
+.hdr h1{font-size:1.6rem;font-weight:700;letter-spacing:-.04em;background:linear-gradient(135deg,#6dd5ed,#2193b0);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hdr p{color:var(--text-dim);font-size:.78rem;margin-top:.15rem}
+
+/* Controls */
+.ctrl-bar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;margin-bottom:1.2rem}
+.ctrl-group{display:flex;align-items:center;gap:.35rem;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:.3rem .65rem}
+.ctrl-group label{font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;white-space:nowrap}
+.ctrl-group input,.ctrl-group select{background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--mono);font-size:.8rem;padding:.3rem .5rem;border-radius:6px;outline:none;transition:border-color .15s}
+.ctrl-group input:focus{border-color:var(--accent)}
+.ctrl-group input[type=date]{width:140px} .ctrl-group input[type=number]{width:65px}
+.btn{background:var(--surface2);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:.74rem;font-weight:500;padding:.4rem .8rem;border-radius:7px;cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:.3rem}
+.btn:hover{border-color:var(--border-hi);background:var(--surface3)}
+.btn.active{background:var(--accent2);border-color:var(--accent);color:#fff}
+.btn svg{width:13px;height:13px}
+
+/* Metrics */
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(155px,1fr));gap:.55rem;margin-bottom:1.4rem}
+.met{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.8rem .9rem;position:relative;overflow:hidden}
+.met::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.met.mp50::before{background:var(--p50)} .met.mp85::before{background:var(--p85)} .met.mp95::before{background:var(--p95)} .met.mgreen::before{background:var(--green)} .met.myellow::before{background:var(--yellow)} .met.mpink::before{background:var(--pink)}
+.met .ml{font-size:.58rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.2rem;font-weight:500}
+.met .mv{font-family:var(--mono);font-size:1.2rem;font-weight:600}
+.met .ms{font-size:.6rem;color:var(--text-xdim);margin-top:.1rem}
+
+/* Charts */
+.stitle{font-size:.95rem;font-weight:600;margin-bottom:.45rem;display:flex;align-items:center;gap:.5rem}
+.stitle .pill{font-size:.56rem;font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.12rem .38rem;color:var(--text-dim);font-weight:500}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.1rem;position:relative;margin-bottom:.7rem}
+canvas{width:100%;display:block}
+.tooltip{position:absolute;pointer-events:none;background:var(--surface2);border:1px solid var(--border-hi);border-radius:8px;padding:.5rem .7rem;font-size:.72rem;line-height:1.5;opacity:0;transition:opacity .1s;z-index:10;box-shadow:0 8px 28px rgba(0,0,0,.55);white-space:nowrap}
+.tooltip.visible{opacity:1}
+
+.legend{display:flex;gap:1rem;justify-content:center;flex-wrap:wrap;font-size:.68rem;color:var(--text-dim);margin-bottom:1.5rem}
+.legend span{display:flex;align-items:center;gap:.3rem}
+.leg-line{width:18px;height:0;display:inline-block}
+.leg-dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100;backdrop-filter:blur(4px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border-hi);border-radius:14px;padding:1.5rem;width:340px;box-shadow:0 16px 48px rgba(0,0,0,.5);animation:modalIn .18s ease-out}
+@keyframes modalIn{from{opacity:0;transform:translateY(10px) scale(.97)}to{opacity:1;transform:none}}
+.modal h3{font-size:.95rem;font-weight:600;margin-bottom:.9rem}
+.modal .field{margin-bottom:.7rem}
+.modal .field label{display:block;font-size:.65rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.25rem}
+.modal .field label .req{color:var(--p95)}
+.modal .field input,.modal .field select{width:100%;background:var(--bg);border:1px solid var(--border);color:var(--text);font-family:var(--font);font-size:.82rem;padding:.45rem .65rem;border-radius:8px;outline:none}
+.modal .field input:focus{border-color:var(--accent)}
+.modal .actions{display:flex;gap:.4rem;justify-content:flex-end;margin-top:1rem}
+.modal .actions button{font-family:var(--font);font-size:.78rem;font-weight:500;padding:.45rem .9rem;border-radius:8px;cursor:pointer;border:none}
+.btn-cancel{background:var(--border);color:var(--text)} .btn-cancel:hover{background:var(--border-hi)}
+.btn-submit{background:var(--accent);color:#08090d;font-weight:600} .btn-submit:hover{filter:brightness(1.1)}
+.field-error{border-color:var(--p95)!important}
+
+/* Sprint log */
+.sprint-log{margin-top:1.5rem}
+.sprint-log h2{font-size:.95rem;font-weight:600;margin-bottom:.5rem}
+.sprint-pills{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:1rem}
+.sp-pill{background:var(--surface);border:1px solid var(--border);border-radius:7px;padding:.35rem .6rem;font-family:var(--mono);font-size:.72rem;display:flex;align-items:center;gap:.4rem}
+.sp-pill .sp-v{font-weight:600;color:var(--accent)} .sp-pill .sp-a{color:var(--yellow);font-weight:600}
+.sp-pill .sp-del{cursor:pointer;color:var(--text-xdim);font-size:.65rem;margin-left:.2rem}
+.sp-pill .sp-del:hover{color:var(--p95)}
+
+@media(max-width:700px){.ctrl-bar{gap:.35rem}.metrics{grid-template-columns:repeat(2,1fr)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <h1>Monte Carlo — Prognoza dostarczenia backlogu</h1>
+    <p>Symulacja 10 000 iteracji · dane historyczne throughputu w 2-tygodniowych sprintach</p>
+  </div>
+
+  <div class="ctrl-bar">
+    <div class="ctrl-group">
+      <label>Start prac</label>
+      <input type="date" id="startDate" value="2026-06-01">
+    </div>
+    <div class="ctrl-group">
+      <label>Backlog</label>
+      <input type="number" id="backlogSize" value="62" min="1">
+    </div>
+    <div class="ctrl-group">
+      <label>Sprint (dni)</label>
+      <input type="number" id="sprintDays" value="14" min="7" max="28">
+    </div>
+    <button class="btn" id="btnBuffer" title="Uwzględnij +20–30% wzrost backlogu">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 3v10M5 6l3-3 3 3"/></svg>
+      +20–30% bufor
+    </button>
+    <button class="btn" id="btnAddTP">
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="3" x2="8" y2="13"/><line x1="3" y1="8" x2="13" y2="8"/></svg>
+      Dodaj sprint
+    </button>
+    <button class="btn" id="btnRun" style="background:var(--accent2);color:#fff;border-color:var(--accent)">▶ Uruchom symulację</button>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <!-- Chart 1: When will backlog be done? -->
+  <div class="stitle">Kiedy skończymy? <span class="pill">rozkład dat ukończenia</span></div>
+  <div class="chart-box"><canvas id="c1"></canvas><div class="tooltip" id="tip1"></div></div>
+  <div class="legend" style="margin-bottom:2rem">
+    <span><span class="leg-dot" style="background:var(--p50)"></span> P50 (50%)</span>
+    <span><span class="leg-dot" style="background:var(--p85)"></span> P85 (85%)</span>
+    <span><span class="leg-dot" style="background:var(--p95)"></span> P95 (95%)</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--yellow)"></span> Koniec sierpnia 2026</span>
+  </div>
+
+  <!-- Chart 2: How many items by end of August? -->
+  <div class="stitle">Ile dostarczymy do końca sierpnia 2026? <span class="pill">rozkład ilości</span></div>
+  <div class="chart-box"><canvas id="c2"></canvas><div class="tooltip" id="tip2"></div></div>
+  <div class="legend" style="margin-bottom:1.2rem">
+    <span><span class="leg-dot" style="background:var(--p50)"></span> P50</span>
+    <span><span class="leg-dot" style="background:var(--p85)"></span> P85</span>
+    <span><span class="leg-dot" style="background:var(--p95)"></span> P95</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--accent)"></span> Backlog (62)</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--pink)"></span> Nowa praca (przyrost)</span>
+  </div>
+
+  <!-- Sprint log -->
+  <div class="sprint-log">
+    <h2>Dane historyczne throughputu</h2>
+    <p style="font-size:.72rem;color:var(--text-dim);margin-bottom:.6rem">Każda wartość = liczba elementów dostarczonych w jednym 2-tygodniowym sprincie. Kliknij × aby usunąć.</p>
+    <div class="sprint-pills" id="sprintPills"></div>
+    <p style="font-size:.7rem;color:var(--text-xdim)">Dodane prace (nowe elementy backlogu na sprint) wpływają na prognozę „Ile dostarczymy".</p>
+  </div>
+</div>
+
+<!-- Add sprint modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h3>Dodaj dane sprintu</h3>
+    <div class="field">
+      <label>Throughput (ukończone elementy) <span class="req">*</span></label>
+      <input type="number" id="addTP" min="0" placeholder="np. 5">
+    </div>
+    <div class="field">
+      <label>Nowe elementy dodane do backlogu <span style="color:var(--text-xdim)">(opcjonalnie)</span></label>
+      <input type="number" id="addNew" min="0" placeholder="np. 3" value="0">
+    </div>
+    <div class="actions">
+      <button class="btn-cancel" id="modalCancel">Anuluj</button>
+      <button class="btn-submit" id="modalSubmit">Dodaj</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════════
+let throughput = [5,4,4,5,6,4,2,3,2,5,6]; // historical sprint throughputs
+let addedWork  = [0,0,0,0,0,0,0,0,0,0,0]; // new items added per sprint
+let backlogBase = 62;
+let startDate = new Date('2026-06-01');
+let sprintDays = 14;
+let bufferMode = false;
+const SIMS = 10000;
+const DEADLINE = new Date('2026-08-31');
+
+// Simulation results
+let simDates = []; // days to complete for chart 1
+let simItems = []; // items done by deadline for chart 2
+let simNewWork = []; // total new work added by deadline
+
+// ═══════════════════════════════════════════════════
+//  SIMULATION
+// ═══════════════════════════════════════════════════
+function runSim() {
+  backlogBase = parseInt(document.getElementById('backlogSize').value) || 62;
+  startDate = new Date(document.getElementById('startDate').value);
+  sprintDays = parseInt(document.getElementById('sprintDays').value) || 14;
+
+  const deadlineSprints = Math.floor((DEADLINE - startDate) / (sprintDays * 86400000));
+  const tp = throughput;
+  const nw = addedWork;
+  const tpLen = tp.length, nwLen = nw.length;
+
+  simDates = [];
+  simItems = [];
+  simNewWork = [];
+
+  for (let s = 0; s < SIMS; s++) {
+    // backlog with optional buffer
+    let backlog = backlogBase;
+    if (bufferMode) backlog = Math.round(backlog * (1.2 + Math.random() * 0.1));
+
+    // Sim 1: how many sprints to finish?
+    let remaining = backlog;
+    let sprints = 0;
+    while (remaining > 0 && sprints < 200) {
+      remaining -= tp[Math.floor(Math.random() * tpLen)];
+      remaining += nw[Math.floor(Math.random() * nwLen)];
+      sprints++;
+    }
+    simDates.push(sprints);
+
+    // Sim 2: how many done by deadline?
+    let done = 0;
+    let totalNew = 0;
+    for (let sp = 0; sp < deadlineSprints; sp++) {
+      done += tp[Math.floor(Math.random() * tpLen)];
+      totalNew += nw[Math.floor(Math.random() * nwLen)];
+    }
+    simItems.push(done);
+    simNewWork.push(totalNew);
+  }
+
+  simDates.sort((a, b) => a - b);
+  simItems.sort((a, b) => a - b);
+  simNewWork.sort((a, b) => a - b);
+
+  renderAll();
+}
+
+function pctl(arr, p) {
+  const i = (p / 100) * (arr.length - 1);
+  const lo = Math.floor(i), hi = Math.ceil(i);
+  return lo === hi ? arr[lo] : arr[lo] + (arr[hi] - arr[lo]) * (i - lo);
+}
+
+function sprintToDate(sprints) {
+  return new Date(startDate.getTime() + sprints * sprintDays * 86400000);
+}
+
+function fmtD(d) { return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'long', year: 'numeric' }); }
+function fmtShort(d) { return d.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short' }); }
+
+// ═══════════════════════════════════════════════════
+//  METRICS
+// ═══════════════════════════════════════════════════
+function renderMetrics() {
+  const d50 = sprintToDate(pctl(simDates, 50));
+  const d85 = sprintToDate(pctl(simDates, 85));
+  const d95 = sprintToDate(pctl(simDates, 95));
+  const i85 = Math.floor(pctl(simItems, 85));
+  const i95 = Math.floor(pctl(simItems, 95));
+  const avgNew = addedWork.reduce((a,b)=>a+b,0)/addedWork.length;
+  const backlog = bufferMode ? Math.round(backlogBase * 1.25) : backlogBase;
+
+  document.getElementById('metrics').innerHTML = `
+    <div class="met mp50"><div class="ml">P50 — data ukończenia</div><div class="mv">${fmtShort(d50)}</div><div class="ms">50% szans</div></div>
+    <div class="met mp85"><div class="ml">P85 — data ukończenia</div><div class="mv">${fmtShort(d85)}</div><div class="ms">85% szans</div></div>
+    <div class="met mp95"><div class="ml">P95 — data ukończenia</div><div class="mv">${fmtShort(d95)}</div><div class="ms">95% szans</div></div>
+    <div class="met mgreen"><div class="ml">P85 — szt do końca VIII</div><div class="mv">${i85}</div><div class="ms">z ${backlog} w backlogu</div></div>
+    <div class="met myellow"><div class="ml">P95 — szt do końca VIII</div><div class="mv">${i95}</div><div class="ms">${i95>=backlog?'✓ cały backlog':'brakuje '+(backlog-i95)}</div></div>
+    <div class="met mpink"><div class="ml">Śr. nowa praca / sprint</div><div class="mv">${avgNew.toFixed(1)}</div><div class="ms">${bufferMode?'bufor +20–30% aktywny':'bufor wyłączony'}</div></div>
+  `;
+}
+
+// ═══════════════════════════════════════════════════
+//  CHARTS
+// ═══════════════════════════════════════════════════
+const DPR = window.devicePixelRatio || 1;
+const PAD = { top: 24, right: 60, bottom: 52, left: 52 };
+
+function initCvs(el) {
+  const r = el.parentElement.getBoundingClientRect();
+  const w = r.width - 2.4 * 16, h = Math.min(380, Math.max(250, w * .38));
+  el.width = w * DPR; el.height = h * DPR;
+  el.style.width = w + 'px'; el.style.height = h + 'px';
+  const c = el.getContext('2d'); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  return { c, w, h, pW: w - PAD.left - PAD.right, pH: h - PAD.top - PAD.bottom };
+}
+
+// ── Chart 1: Date histogram ──
+function drawChart1() {
+  const el = document.getElementById('c1');
+  const { c, w, h, pW, pH } = initCvs(el);
+
+  const p50 = pctl(simDates, 50), p85 = pctl(simDates, 85), p95 = pctl(simDates, 95);
+  const minS = simDates[0], maxS = simDates[simDates.length - 1];
+
+  // Build histogram bins
+  const nBins = Math.min(60, maxS - minS + 1);
+  const binW = (maxS - minS) / nBins || 1;
+  const bins = new Array(nBins).fill(0);
+  simDates.forEach(v => {
+    let b = Math.floor((v - minS) / binW);
+    if (b >= nBins) b = nBins - 1;
+    bins[b]++;
+  });
+  const maxBin = Math.max(...bins);
+
+  const sx = i => PAD.left + (i / nBins) * pW;
+  const sy = v => PAD.top + pH - (v / maxBin) * pH;
+
+  // Bars
+  const barW = Math.max(2, pW / nBins - 1);
+  bins.forEach((count, i) => {
+    const x = sx(i);
+    const sprintVal = minS + i * binW;
+    const date = sprintToDate(sprintVal);
+    let col = 'rgba(109,213,237,.35)';
+    if (sprintVal >= p95) col = 'rgba(248,81,73,.35)';
+    else if (sprintVal >= p85) col = 'rgba(240,136,62,.35)';
+    else if (sprintVal >= p50) col = 'rgba(88,166,255,.35)';
+    c.fillStyle = col;
+    c.fillRect(x, sy(count), barW, pH - (sy(count) - PAD.top));
+  });
+
+  // Percentile lines
+  const drawPLine = (val, col, label) => {
+    const x = sx((val - minS) / binW);
+    if (x < PAD.left || x > PAD.left + pW) return;
+    c.strokeStyle = col; c.lineWidth = 2; c.setLineDash([5, 3]);
+    c.beginPath(); c.moveTo(x, PAD.top); c.lineTo(x, PAD.top + pH); c.stroke(); c.setLineDash([]);
+    c.fillStyle = col; c.font = '600 9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+    const d = sprintToDate(val);
+    c.fillText(`${label}: ${fmtShort(d)}`, x, PAD.top - 6);
+  };
+  drawPLine(p50, '#58a6ff', 'P50');
+  drawPLine(p85, '#f0883e', 'P85');
+  drawPLine(p95, '#f85149', 'P95');
+
+  // Deadline line
+  const dlSprints = (DEADLINE - startDate) / (sprintDays * 86400000);
+  if (dlSprints >= minS && dlSprints <= maxS) {
+    const dx = sx((dlSprints - minS) / binW);
+    c.strokeStyle = '#d29922'; c.lineWidth = 1.5; c.setLineDash([6, 4]);
+    c.beginPath(); c.moveTo(dx, PAD.top); c.lineTo(dx, PAD.top + pH); c.stroke(); c.setLineDash([]);
+    c.fillStyle = '#d29922'; c.font = '500 8px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+    c.fillText('31 VIII 2026', dx, PAD.top + pH + 12);
+  }
+
+  // X axis: sprint dates
+  c.fillStyle = '#6b7f99'; c.font = '8px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+  const labelStep = Math.max(1, Math.floor(nBins / 8));
+  for (let i = 0; i < nBins; i += labelStep) {
+    const d = sprintToDate(minS + i * binW);
+    c.fillText(fmtShort(d), sx(i), h - PAD.bottom + 14);
+  }
+
+  // Y axis
+  c.fillStyle = '#6b7f99'; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const v = Math.round(maxBin / 4 * i);
+    c.fillText(v, PAD.left - 8, sy(v) + 3);
+  }
+  c.save(); c.translate(12, PAD.top + pH / 2); c.rotate(-Math.PI / 2);
+  c.fillStyle = '#6b7f99'; c.font = '9px "Space Grotesk",sans-serif'; c.textAlign = 'center';
+  c.fillText('Symulacje', 0, 0); c.restore();
+}
+
+// ── Chart 2: Items histogram ──
+function drawChart2() {
+  const el = document.getElementById('c2');
+  const { c, w, h, pW, pH } = initCvs(el);
+
+  const p50 = pctl(simItems, 50), p85 = pctl(simItems, 85), p95 = pctl(simItems, 95);
+  const minI = simItems[0], maxI = simItems[simItems.length - 1];
+  const backlog = bufferMode ? Math.round(backlogBase * 1.25) : backlogBase;
+
+  // New work accumulation line data
+  const nwP50 = pctl(simNewWork, 50), nwP85 = pctl(simNewWork, 85);
+
+  const nBins = Math.min(50, maxI - minI + 1);
+  const binW = (maxI - minI) / nBins || 1;
+  const bins = new Array(nBins).fill(0);
+  simItems.forEach(v => {
+    let b = Math.floor((v - minI) / binW);
+    if (b >= nBins) b = nBins - 1;
+    bins[b]++;
+  });
+  const maxBin = Math.max(...bins);
+
+  const sx = i => PAD.left + (i / nBins) * pW;
+  const sxV = v => PAD.left + ((v - minI) / (maxI - minI || 1)) * pW;
+  const sy = v => PAD.top + pH - (v / maxBin) * pH;
+
+  const barW = Math.max(2, pW / nBins - 1);
+  bins.forEach((count, i) => {
+    const itemVal = minI + i * binW;
+    let col = 'rgba(109,213,237,.3)';
+    if (itemVal <= p50) col = 'rgba(248,81,73,.25)';
+    else if (itemVal <= p85) col = 'rgba(240,136,62,.3)';
+    else col = 'rgba(63,185,80,.3)';
+    c.fillStyle = col;
+    c.fillRect(sx(i), sy(count), barW, pH - (sy(count) - PAD.top));
+  });
+
+  // Percentile lines
+  const drawPLine = (val, col, label) => {
+    const x = sxV(val);
+    if (x < PAD.left || x > PAD.left + pW) return;
+    c.strokeStyle = col; c.lineWidth = 2; c.setLineDash([5, 3]);
+    c.beginPath(); c.moveTo(x, PAD.top); c.lineTo(x, PAD.top + pH); c.stroke(); c.setLineDash([]);
+    c.fillStyle = col; c.font = '600 9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+    c.fillText(`${label}: ${Math.floor(val)} szt`, x, PAD.top - 6);
+  };
+  drawPLine(p50, '#58a6ff', 'P50');
+  drawPLine(p85, '#f0883e', 'P85');
+  drawPLine(p95, '#f85149', 'P95');
+
+  // Backlog line
+  if (backlog >= minI && backlog <= maxI) {
+    const bx = sxV(backlog);
+    c.strokeStyle = '#6dd5ed'; c.lineWidth = 2; c.setLineDash([6, 3]);
+    c.beginPath(); c.moveTo(bx, PAD.top); c.lineTo(bx, PAD.top + pH); c.stroke(); c.setLineDash([]);
+    c.fillStyle = '#6dd5ed'; c.font = '600 9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+    c.fillText(`Backlog: ${backlog}`, bx, PAD.top + pH + 13);
+  }
+
+  // New work line (cumulative by deadline)
+  if (nwP85 > 0) {
+    const effectiveBacklog = backlog + nwP85;
+    if (effectiveBacklog >= minI && effectiveBacklog <= maxI) {
+      const nx = sxV(effectiveBacklog);
+      c.strokeStyle = '#f778ba'; c.lineWidth = 1.5; c.setLineDash([4, 3]);
+      c.beginPath(); c.moveTo(nx, PAD.top); c.lineTo(nx, PAD.top + pH); c.stroke(); c.setLineDash([]);
+      c.fillStyle = '#f778ba'; c.font = '500 8px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+      c.fillText(`Backlog + nowa praca (P85): ${Math.round(effectiveBacklog)}`, nx, PAD.top + pH + 25);
+    }
+  }
+
+  // X axis
+  c.fillStyle = '#6b7f99'; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+  const labelStep = Math.max(1, Math.floor(nBins / 8));
+  for (let i = 0; i < nBins; i += labelStep) {
+    c.fillText(Math.round(minI + i * binW), sx(i), h - PAD.bottom + 14);
+  }
+  c.fillText('szt', PAD.left + pW + 20, h - PAD.bottom + 14);
+
+  // Y axis
+  c.fillStyle = '#6b7f99'; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'right';
+  for (let i = 0; i <= 4; i++) {
+    const v = Math.round(maxBin / 4 * i);
+    c.fillText(v, PAD.left - 8, sy(v) + 3);
+  }
+  c.save(); c.translate(12, PAD.top + pH / 2); c.rotate(-Math.PI / 2);
+  c.fillStyle = '#6b7f99'; c.font = '9px "Space Grotesk",sans-serif'; c.textAlign = 'center';
+  c.fillText('Symulacje', 0, 0); c.restore();
+}
+
+// ═══════════════════════════════════════════════════
+//  SPRINT PILLS
+// ═══════════════════════════════════════════════════
+function renderPills() {
+  const el = document.getElementById('sprintPills');
+  el.innerHTML = throughput.map((v, i) => {
+    const nw = addedWork[i] || 0;
+    const nwTag = nw > 0 ? `<span class="sp-a">+${nw} nowe</span>` : '';
+    return `<div class="sp-pill">S${i + 1}: <span class="sp-v">${v} szt</span>${nwTag}<span class="sp-del" data-i="${i}">×</span></div>`;
+  }).join('');
+  el.querySelectorAll('.sp-del').forEach(btn => {
+    btn.addEventListener('click', e => {
+      const i = parseInt(e.target.dataset.i);
+      throughput.splice(i, 1);
+      addedWork.splice(i, 1);
+      renderPills();
+      runSim();
+    });
+  });
+}
+
+// ═══════════════════════════════════════════════════
+//  CONTROLS
+// ═══════════════════════════════════════════════════
+document.getElementById('btnBuffer').addEventListener('click', function () {
+  bufferMode = !bufferMode;
+  this.classList.toggle('active', bufferMode);
+  runSim();
+});
+
+document.getElementById('btnRun').addEventListener('click', runSim);
+document.getElementById('startDate').addEventListener('change', runSim);
+document.getElementById('backlogSize').addEventListener('change', runSim);
+document.getElementById('sprintDays').addEventListener('change', runSim);
+
+// Modal
+const modal = document.getElementById('modal');
+document.getElementById('btnAddTP').addEventListener('click', () => {
+  document.getElementById('addTP').value = '';
+  document.getElementById('addNew').value = '0';
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('addTP').focus(), 50);
+});
+document.getElementById('modalCancel').addEventListener('click', () => modal.classList.remove('open'));
+modal.addEventListener('click', e => { if (e.target === modal) modal.classList.remove('open'); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') modal.classList.remove('open'); });
+
+document.getElementById('modalSubmit').addEventListener('click', () => {
+  const tpEl = document.getElementById('addTP');
+  const nwEl = document.getElementById('addNew');
+  tpEl.classList.remove('field-error');
+  if (!tpEl.value || parseInt(tpEl.value) < 0) { tpEl.classList.add('field-error'); return; }
+  throughput.push(parseInt(tpEl.value));
+  addedWork.push(parseInt(nwEl.value) || 0);
+  modal.classList.remove('open');
+  renderPills();
+  runSim();
+});
+
+// ═══════════════════════════════════════════════════
+//  RENDER ALL
+// ═══════════════════════════════════════════════════
+function renderAll() {
+  renderMetrics();
+  drawChart1();
+  drawChart2();
+}
+
+window.addEventListener('resize', () => { if (simDates.length) renderAll(); });
+renderPills();
+runSim();
+</script>
+</body>
+</html>
