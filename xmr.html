@@ -3,176 +3,139 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>XmR Chart — Cycle Time</title>
+<title>XmR Chart — Cycle Time + Moving Range</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
-
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-
   :root {
-    --bg: #0b0f14;
-    --surface: #131920;
-    --surface2: #1a2230;
-    --border: #1e2a3a;
-    --border-hi: #2a3a50;
-    --text: #d8e3f0;
-    --text-dim: #6b7f99;
-    --text-xdim: #3d5068;
-    --mean-color: #58a6ff;
-    --unpl-color: #f0883e;
-    --lnpl-color: #56d364;
-    --line-color: #7ee8fa;
-    --dot-color: #7ee8fa;
-    --dot-over: #f0883e;
+    --bg: #0b0f14; --surface: #131920; --surface2: #1a2230;
+    --border: #1e2a3a; --border-hi: #2a3a50;
+    --text: #d8e3f0; --text-dim: #6b7f99; --text-xdim: #3d5068;
+    --mean-color: #58a6ff; --unpl-color: #f0883e; --lnpl-color: #56d364;
+    --line-color: #7ee8fa; --dot-over: #f0883e;
+    --mr-line: #c4a0f5; --mr-dot: #c4a0f5;
+    --s1-color: #4d6a8a; --s2-color: #5c7ea0;
+    --warn-red: #f85149; --warn-yellow: #d29922;
     --font: 'Outfit', system-ui, sans-serif;
     --mono: 'IBM Plex Mono', monospace;
   }
+  body { background:var(--bg); color:var(--text); font-family:var(--font); min-height:100vh; display:flex; flex-direction:column; align-items:center; padding:2rem 1rem; }
+  .wrap { width:100%; max-width:1200px; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font);
-    min-height: 100vh;
-    display: flex; flex-direction: column; align-items: center;
-    padding: 2rem 1rem;
-  }
+  .header { display:flex; justify-content:space-between; align-items:flex-end; flex-wrap:wrap; gap:0.5rem; margin-bottom:1.8rem; }
+  .header h1 { font-size:1.55rem; font-weight:700; letter-spacing:-0.03em; background:linear-gradient(135deg,#7ee8fa,#58a6ff); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
+  .header p { color:var(--text-dim); font-size:0.8rem; }
+  .badge { display:inline-flex; align-items:center; gap:0.3rem; background:var(--surface2); border:1px solid var(--border); border-radius:6px; padding:0.3rem 0.6rem; font-size:0.7rem; font-family:var(--mono); color:var(--text-dim); }
+  .badge .dot { width:6px; height:6px; border-radius:50%; }
 
-  .wrap { width: 100%; max-width: 1200px; }
+  .metrics { display:grid; grid-template-columns:repeat(auto-fit,minmax(145px,1fr)); gap:0.6rem; margin-bottom:1.6rem; }
+  .metric { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:0.85rem 1rem; position:relative; overflow:hidden; }
+  .metric::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; }
+  .metric.m-mean::before{background:var(--mean-color)} .metric.m-unpl::before{background:var(--unpl-color)} .metric.m-lnpl::before{background:var(--lnpl-color)} .metric.m-mr::before{background:var(--mr-line)} .metric.m-n::before{background:var(--line-color)} .metric.m-sig::before{background:var(--warn-red)}
+  .metric .m-label { font-size:0.62rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:0.25rem; font-weight:500; }
+  .metric .m-value { font-family:var(--mono); font-size:1.3rem; font-weight:600; }
+  .metric .m-sub { font-size:0.65rem; color:var(--text-xdim); margin-top:0.1rem; }
 
-  /* Header */
-  .header {
-    display: flex; justify-content: space-between; align-items: flex-end;
-    flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.8rem;
-  }
-  .header h1 {
-    font-size: 1.55rem; font-weight: 700; letter-spacing: -0.03em;
-    background: linear-gradient(135deg, #7ee8fa 0%, #58a6ff 100%);
-    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-  }
-  .header p { color: var(--text-dim); font-size: 0.8rem; font-weight: 400; }
-  .badge {
-    display: inline-flex; align-items: center; gap: 0.3rem;
-    background: var(--surface2); border: 1px solid var(--border);
-    border-radius: 6px; padding: 0.3rem 0.6rem;
-    font-size: 0.7rem; font-family: var(--mono); color: var(--text-dim);
-  }
-  .badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .section-title { font-size:1.05rem; font-weight:600; margin-bottom:0.6rem; letter-spacing:-0.02em; display:flex; align-items:center; gap:0.5rem; }
+  .section-title .pill { font-size:0.6rem; font-family:var(--mono); background:var(--surface2); border:1px solid var(--border); border-radius:4px; padding:0.15rem 0.4rem; color:var(--text-dim); font-weight:500; }
 
-  /* Metric cards */
-  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; margin-bottom: 1.6rem; }
-  .metric {
-    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
-    padding: 0.9rem 1rem; position: relative; overflow: hidden;
-  }
-  .metric::before {
-    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-  }
-  .metric.m-mean::before { background: var(--mean-color); }
-  .metric.m-unpl::before { background: var(--unpl-color); }
-  .metric.m-lnpl::before { background: var(--lnpl-color); }
-  .metric.m-mr::before { background: var(--text-xdim); }
-  .metric.m-n::before { background: var(--line-color); }
-  .metric .m-label {
-    font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase;
-    letter-spacing: 0.07em; margin-bottom: 0.25rem; font-weight: 500;
-  }
-  .metric .m-value { font-family: var(--mono); font-size: 1.35rem; font-weight: 600; }
-  .metric .m-sub { font-size: 0.65rem; color: var(--text-xdim); margin-top: 0.1rem; }
+  .chart-box { background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:1.3rem; position:relative; margin-bottom:0.8rem; }
+  canvas { width:100%; display:block; }
+  .tooltip { position:absolute; pointer-events:none; background:var(--surface2); border:1px solid var(--border-hi); border-radius:8px; padding:0.55rem 0.75rem; font-size:0.75rem; line-height:1.55; opacity:0; transition:opacity 0.1s; z-index:10; box-shadow:0 8px 28px rgba(0,0,0,0.55); white-space:nowrap; }
+  .tooltip.visible { opacity:1; }
+  .tooltip .t-id { color:var(--text-dim); font-size:0.65rem; }
+  .tooltip .t-val { font-family:var(--mono); font-weight:600; font-size:0.95rem; }
+  .tooltip .t-date { color:var(--text-dim); font-size:0.68rem; }
+  .tooltip .t-flag { font-weight:600; font-size:0.7rem; margin-top:0.15rem; }
+  .t-flag-red { color:var(--warn-red); }
+  .t-flag-yellow { color:var(--warn-yellow); }
 
-  /* Chart */
-  .chart-box {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 12px; padding: 1.3rem; position: relative; margin-bottom: 1rem;
-  }
-  canvas { width: 100%; display: block; }
+  .legend { display:flex; gap:1.2rem; justify-content:center; flex-wrap:wrap; font-size:0.7rem; color:var(--text-dim); margin-bottom:1.6rem; }
+  .legend span { display:flex; align-items:center; gap:0.3rem; }
+  .leg-line { width:18px; height:0; display:inline-block; }
+  .leg-tri { display:inline-block; width:0; height:0; border-left:5px solid transparent; border-right:5px solid transparent; }
 
-  .tooltip {
-    position: absolute; pointer-events: none;
-    background: var(--surface2); border: 1px solid var(--border-hi);
-    border-radius: 8px; padding: 0.55rem 0.75rem;
-    font-size: 0.75rem; line-height: 1.55; opacity: 0;
-    transition: opacity 0.1s; z-index: 10;
-    box-shadow: 0 8px 28px rgba(0,0,0,0.55); white-space: nowrap;
-  }
-  .tooltip.visible { opacity: 1; }
-  .tooltip .t-id { color: var(--text-dim); font-size: 0.65rem; }
-  .tooltip .t-val { font-family: var(--mono); font-weight: 600; font-size: 0.95rem; }
-  .tooltip .t-date { color: var(--text-dim); font-size: 0.68rem; }
-  .tooltip .t-flag { color: var(--dot-over); font-weight: 600; font-size: 0.7rem; margin-top: 0.2rem; }
+  .table-section h2 { font-size:1rem; font-weight:600; margin-bottom:0.6rem; }
+  .table-wrap { background:var(--surface); border:1px solid var(--border); border-radius:10px; overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-size:0.78rem; }
+  thead th { background:var(--surface2); color:var(--text-dim); font-weight:600; text-transform:uppercase; font-size:0.62rem; letter-spacing:0.06em; padding:0.65rem 0.75rem; text-align:right; border-bottom:1px solid var(--border); white-space:nowrap; }
+  thead th:first-child { text-align:center; width:3em; }
+  thead th:nth-child(2) { text-align:left; }
+  tbody td { padding:0.5rem 0.75rem; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:0.78rem; text-align:right; }
+  tbody td:first-child { text-align:center; color:var(--text-dim); font-size:0.72rem; }
+  tbody td:nth-child(2) { font-family:var(--font); text-align:left; color:var(--text-dim); }
+  tbody tr:last-child td { border-bottom:none; }
+  tbody tr:hover { background:rgba(126,232,250,0.03); }
+  tbody tr.over-limit td:nth-child(3) { color:var(--dot-over); font-weight:600; }
 
-  /* Legend */
-  .legend {
-    display: flex; gap: 1.4rem; justify-content: center; flex-wrap: wrap;
-    font-size: 0.72rem; color: var(--text-dim); margin-bottom: 1.8rem;
-  }
-  .legend span { display: flex; align-items: center; gap: 0.35rem; }
-  .leg-line {
-    width: 20px; height: 0; display: inline-block;
-  }
-
-  /* Data table */
-  .table-section h2 {
-    font-size: 1rem; font-weight: 600; margin-bottom: 0.6rem; letter-spacing: -0.02em;
-  }
-  .table-wrap {
-    background: var(--surface); border: 1px solid var(--border);
-    border-radius: 10px; overflow-x: auto;
-  }
-  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
-  thead th {
-    background: var(--surface2); color: var(--text-dim); font-weight: 600;
-    text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.06em;
-    padding: 0.65rem 0.75rem; text-align: right; border-bottom: 1px solid var(--border);
-    white-space: nowrap;
-  }
-  thead th:first-child { text-align: center; width: 3em; }
-  thead th:nth-child(2) { text-align: left; }
-  tbody td {
-    padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border);
-    font-family: var(--mono); font-size: 0.78rem; text-align: right;
-  }
-  tbody td:first-child { text-align: center; color: var(--text-dim); font-size: 0.72rem; }
-  tbody td:nth-child(2) { font-family: var(--font); text-align: left; color: var(--text-dim); }
-  tbody tr:last-child td { border-bottom: none; }
-  tbody tr:hover { background: rgba(126,232,250,0.03); }
-  tbody tr.over-limit td:nth-child(3) { color: var(--dot-over); font-weight: 600; }
+  .signal-legend { background:var(--surface); border:1px solid var(--border); border-radius:10px; padding:1rem 1.2rem; margin-bottom:1.6rem; }
+  .signal-legend h3 { font-size:0.8rem; font-weight:600; margin-bottom:0.6rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:0.04em; }
+  .sig-item { display:flex; align-items:flex-start; gap:0.6rem; margin-bottom:0.45rem; font-size:0.75rem; line-height:1.5; }
+  .sig-icon { flex-shrink:0; width:20px; text-align:center; font-size:0.85rem; margin-top:0.05rem; }
 </style>
 </head>
 <body>
 <div class="wrap">
-
   <div class="header">
     <div>
       <h1>XmR Chart — Cycle Time</h1>
-      <p>Individual chart (X) · dane styczeń–kwiecień 2024</p>
+      <p>Individual (X) + Moving Range (mR) · styczeń–kwiecień 2024</p>
     </div>
-    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-      <span class="badge"><span class="dot" style="background:var(--mean-color)"></span> X̄ = średnia</span>
-      <span class="badge"><span class="dot" style="background:var(--unpl-color)"></span> UNPL = X̄ + 2.66·mR̄</span>
-      <span class="badge"><span class="dot" style="background:var(--lnpl-color)"></span> LNPL = X̄ − 2.66·mR̄</span>
+    <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+      <span class="badge"><span class="dot" style="background:var(--mean-color)"></span> X̄ / mR̄</span>
+      <span class="badge"><span class="dot" style="background:var(--unpl-color)"></span> UNPL / URL</span>
+      <span class="badge"><span class="dot" style="background:var(--lnpl-color)"></span> LNPL / LRL</span>
     </div>
   </div>
 
   <div class="metrics" id="metrics"></div>
 
+  <!-- X CHART -->
+  <div class="section-title">Wykres X — Cycle Time <span class="pill">Individual Chart</span></div>
   <div class="chart-box">
     <canvas id="xChart"></canvas>
-    <div class="tooltip" id="tip"></div>
+    <div class="tooltip" id="tipX"></div>
   </div>
-
-  <div class="legend">
+  <div class="legend" style="margin-bottom:2rem;">
     <span><span class="leg-line" style="border-top:2px solid var(--line-color)"></span> Cycle Time</span>
     <span><span class="leg-line" style="border-top:2px dashed var(--mean-color)"></span> Średnia (X̄)</span>
     <span><span class="leg-line" style="border-top:2px dashed var(--unpl-color)"></span> UNPL</span>
     <span><span class="leg-line" style="border-top:2px dashed var(--lnpl-color)"></span> LNPL</span>
-    <span><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dot-over)"></span> Poza limitem</span>
+  </div>
+
+  <!-- MR CHART -->
+  <div class="section-title">Wykres mR — Moving Range <span class="pill">Ruchome rozstępy</span></div>
+  <div class="chart-box" id="mrChartBox">
+    <canvas id="mrChart"></canvas>
+    <div class="tooltip" id="tipMR"></div>
+  </div>
+  <div class="legend" style="margin-bottom:1.2rem;">
+    <span><span class="leg-line" style="border-top:2px solid var(--mr-line)"></span> Moving Range</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--mean-color)"></span> mR̄ (średnia)</span>
+    <span><span class="leg-line" style="border-top:1px dashed var(--s1-color)"></span> ±1σ (1/3)</span>
+    <span><span class="leg-line" style="border-top:1px dashed var(--s2-color)"></span> ±2σ (2/3)</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--unpl-color)"></span> URL (+3.27)</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--lnpl-color)"></span> LRL (−3.27)</span>
+    <span><span class="leg-tri" style="border-bottom:8px solid var(--warn-red)"></span> Poza limitem</span>
+    <span><span class="leg-tri" style="border-bottom:8px solid var(--warn-yellow)"></span> Para > 2σ</span>
+    <span><span class="leg-line" style="border-top:2.5px solid var(--warn-red)"></span> 3/5 > 2σ</span>
+    <span style="border:1px dashed rgba(248,81,73,0.5);border-radius:3px;padding:0 4px;">8 po jednej stronie</span>
+  </div>
+
+  <!-- Signal detection legend -->
+  <div class="signal-legend">
+    <h3>Reguły detekcji sygnałów (wykres mR)</h3>
+    <div class="sig-item"><div class="sig-icon" style="color:var(--warn-red)">▲!</div><div>Punkt poza zakresem zmienności typowej (URL / LRL) — <strong>czerwony trójkąt</strong></div></div>
+    <div class="sig-item"><div class="sig-icon" style="color:var(--warn-yellow)">▲!</div><div>Dwa kolejne punkty ponad 2σ od średniej — <strong>żółty trójkąt</strong></div></div>
+    <div class="sig-item"><div class="sig-icon" style="color:var(--warn-red)">━</div><div>W oknie 5 kolejnych punktów min. 3 leżą poza 2σ — <strong>czerwona linia łącząca</strong></div></div>
+    <div class="sig-item"><div class="sig-icon" style="border:1px dashed rgba(248,81,73,0.4);border-radius:2px;font-size:0.6rem;line-height:1.2em;">░</div><div>8 kolejnych wartości po jednej stronie średniej — <strong>czerwona ramka</strong></div></div>
   </div>
 
   <div class="table-section">
     <h2>Dane szczegółowe</h2>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>#</th><th>Data zamknięcia</th><th>Cycle Time</th><th>Moving Range</th></tr></thead>
+        <thead><tr><th>#</th><th>Data zamknięcia</th><th>Cycle Time</th><th>Moving Range</th><th>Sygnały MR</th></tr></thead>
         <tbody id="tBody"></tbody>
       </table>
     </div>
@@ -180,9 +143,9 @@
 </div>
 
 <script>
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  DATA
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════
 const DATA = [
   {id:1,closed:"2024-01-05",ct:38},{id:2,closed:"2024-01-11",ct:24},
   {id:3,closed:"2024-01-16",ct:14},{id:4,closed:"2024-01-17",ct:9},
@@ -201,213 +164,449 @@ const DATA = [
   {id:29,closed:"2024-04-09",ct:29},{id:30,closed:"2024-04-09",ct:20}
 ];
 
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  XmR CALCULATIONS
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════
 const N = DATA.length;
 const ctArr = DATA.map(d => d.ct);
-const mrArr = [null];
-for (let i = 1; i < N; i++) mrArr.push(Math.abs(ctArr[i] - ctArr[i - 1]));
 
-const avgCT = ctArr.reduce((a, b) => a + b, 0) / N;
-const avgMR = mrArr.slice(1).reduce((a, b) => a + b, 0) / (N - 1);
+// Moving ranges (index 0 = null since no pair for first item)
+const mrVals = [null]; // mrVals[i] corresponds to DATA[i]
+for (let i = 1; i < N; i++) mrVals.push(Math.abs(ctArr[i] - ctArr[i-1]));
+const mrOnly = mrVals.slice(1); // actual MR values (N-1 items)
+const M = mrOnly.length;
+
+const avgCT = ctArr.reduce((a,b)=>a+b,0) / N;
+const avgMR = mrOnly.reduce((a,b)=>a+b,0) / M;
+
+// X chart limits
 const UNPL = avgCT + 2.66 * avgMR;
 const LNPL = avgCT - 2.66 * avgMR;
-// LNPL clamp: if negative, natural lower limit is 0 for cycle time
-const LNPL_draw = Math.max(LNPL, 0);
 
-// Flag out-of-control points
-DATA.forEach((d, i) => { d.mr = mrArr[i]; d.over = d.ct > UNPL || d.ct < LNPL; });
+// MR chart limits: URL = D4 * mR_bar. For n=2, D4 = 3.267 ≈ 3.27
+const URL_MR = 3.27 * avgMR;
+const LRL_MR = Math.max(0, -3.27 * avgMR); // always 0 for MR
+// Sigma for MR chart: sigma_MR = (URL - mR_bar) / 3
+const sigmaMR = (URL_MR - avgMR) / 3;
+const s1_hi = avgMR + sigmaMR;
+const s1_lo = Math.max(0, avgMR - sigmaMR);
+const s2_hi = avgMR + 2 * sigmaMR;
+const s2_lo = Math.max(0, avgMR - 2 * sigmaMR);
 
-// ═══════════════════════════════════════
-//  METRICS
-// ═══════════════════════════════════════
-const overCount = DATA.filter(d => d.over).length;
-document.getElementById('metrics').innerHTML = `
-  <div class="metric m-n"><div class="m-label">Obserwacje</div><div class="m-value">${N}</div><div class="m-sub">punktów danych</div></div>
-  <div class="metric m-mean"><div class="m-label">Średnia (X̄)</div><div class="m-value">${avgCT.toFixed(2)}</div><div class="m-sub">dni cycle time</div></div>
-  <div class="metric m-mr"><div class="m-label">Śr. Moving Range</div><div class="m-value">${avgMR.toFixed(2)}</div><div class="m-sub">mR̄</div></div>
-  <div class="metric m-unpl"><div class="m-label">UNPL</div><div class="m-value">${UNPL.toFixed(2)}</div><div class="m-sub">X̄ + 2.66 · mR̄</div></div>
-  <div class="metric m-lnpl"><div class="m-label">LNPL</div><div class="m-value">${LNPL.toFixed(2)}</div><div class="m-sub">X̄ − 2.66 · mR̄${LNPL < 0 ? ' (rys. 0)' : ''}</div></div>
-  <div class="metric" style="--accent:var(--dot-over)"><div class="m-label">Poza limitem</div><div class="m-value" style="color:${overCount ? 'var(--dot-over)' : 'var(--text)'}">${overCount}</div><div class="m-sub">z ${N} obserwacji</div></div>
-`;
+// Flag X chart points
+DATA.forEach((d,i) => { d.mr = mrVals[i]; d.overX = d.ct > UNPL || d.ct < LNPL; });
 
-// ═══════════════════════════════════════
-//  CHART
-// ═══════════════════════════════════════
-const canvas = document.getElementById('xChart');
-const ctx = canvas.getContext('2d');
-const tip = document.getElementById('tip');
-const DPR = window.devicePixelRatio || 1;
-const PAD = { top: 32, right: 90, bottom: 52, left: 56 };
-let CW, CH, pW, pH, pts = [];
+// ═══════════════════════════════════════════════════
+//  MR SIGNAL DETECTION
+// ═══════════════════════════════════════════════════
+// We work with indices 1..N-1 (mrVals[1] through mrVals[N-1])
+// For convenience, mrIdx maps to mrVals index (1-based in DATA)
 
-function resize() {
-  const r = canvas.parentElement.getBoundingClientRect();
-  CW = r.width - 2.6 * 16;
-  CH = Math.min(440, Math.max(280, CW * 0.42));
-  canvas.width = CW * DPR; canvas.height = CH * DPR;
-  canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
-  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-  pW = CW - PAD.left - PAD.right;
-  pH = CH - PAD.top - PAD.bottom;
+// Rule 1: single point beyond 3σ (URL)
+const rule1 = new Set();
+for (let i = 1; i < N; i++) {
+  if (mrVals[i] > URL_MR || mrVals[i] < LRL_MR) rule1.add(i);
 }
 
-function draw() {
-  const c = ctx;
-  c.clearRect(0, 0, CW, CH);
-  pts = [];
+// Rule 2: consecutive pair both > 2σ from mean
+const rule2 = new Set();
+for (let i = 1; i < N - 1; i++) {
+  const a = mrVals[i], b = mrVals[i+1];
+  const a2 = Math.abs(a - avgMR) > 2 * sigmaMR;
+  const b2 = Math.abs(b - avgMR) > 2 * sigmaMR;
+  if (a2 && b2) { rule2.add(i); rule2.add(i+1); }
+}
 
-  const yMax = Math.max(UNPL, ...ctArr) * 1.12;
-  const yMin = Math.min(LNPL_draw, 0);
+// Rule 3: in any window of 5 consecutive, ≥ 3 beyond 2σ → connect with red line
+const rule3segments = []; // arrays of indices to connect
+for (let start = 1; start <= N - 5; start++) {
+  const window5 = [];
+  for (let j = start; j < start + 5 && j < N; j++) window5.push(j);
+  const beyond = window5.filter(j => Math.abs(mrVals[j] - avgMR) > 2 * sigmaMR);
+  if (beyond.length >= 3) {
+    rule3segments.push(window5); // all 5 in the window get the line
+  }
+}
+// Merge overlapping segments
+const rule3indices = new Set();
+rule3segments.forEach(seg => seg.forEach(i => rule3indices.add(i)));
+
+// Rule 4: 8 consecutive on same side of mean
+const rule4runs = []; // [{start, end}]
+{
+  let runStart = 1, runSide = mrVals[1] > avgMR ? 1 : -1;
+  for (let i = 2; i < N; i++) {
+    const side = mrVals[i] > avgMR ? 1 : (mrVals[i] < avgMR ? -1 : 0);
+    if (side === runSide && side !== 0) {
+      // continue run
+    } else {
+      const runLen = i - runStart;
+      if (runLen >= 8) rule4runs.push({ start: runStart, end: i - 1 });
+      runStart = i;
+      runSide = side;
+    }
+  }
+  const runLen = N - runStart;
+  if (runLen >= 8) rule4runs.push({ start: runStart, end: N - 1 });
+}
+
+// Collect signals per MR index for table
+const mrSignals = {};
+for (let i = 1; i < N; i++) mrSignals[i] = [];
+rule1.forEach(i => mrSignals[i].push('3σ'));
+rule2.forEach(i => { if (!mrSignals[i].includes('2×2σ')) mrSignals[i].push('2×2σ'); });
+rule3indices.forEach(i => { if (!mrSignals[i].includes('3/5>2σ')) mrSignals[i].push('3/5>2σ'); });
+rule4runs.forEach(r => { for (let i=r.start;i<=r.end;i++) { if (!mrSignals[i].includes('8×side')) mrSignals[i].push('8×side'); }});
+
+// ═══════════════════════════════════════════════════
+//  METRICS
+// ═══════════════════════════════════════════════════
+const overXCount = DATA.filter(d => d.overX).length;
+const signalCount = Object.values(mrSignals).filter(v => v.length > 0).length;
+document.getElementById('metrics').innerHTML = `
+  <div class="metric m-n"><div class="m-label">Obserwacje</div><div class="m-value">${N}</div><div class="m-sub">${M} moving ranges</div></div>
+  <div class="metric m-mean"><div class="m-label">Średnia CT (X̄)</div><div class="m-value">${avgCT.toFixed(2)}</div><div class="m-sub">dni</div></div>
+  <div class="metric m-mr"><div class="m-label">Średnia MR (mR̄)</div><div class="m-value">${avgMR.toFixed(2)}</div><div class="m-sub">σ<sub>MR</sub> = ${sigmaMR.toFixed(2)}</div></div>
+  <div class="metric m-unpl"><div class="m-label">UNPL / URL</div><div class="m-value">${UNPL.toFixed(1)}</div><div class="m-sub">URL = ${URL_MR.toFixed(1)}</div></div>
+  <div class="metric m-lnpl"><div class="m-label">LNPL / LRL</div><div class="m-value">${LNPL.toFixed(1)}</div><div class="m-sub">LRL = ${LRL_MR.toFixed(1)}</div></div>
+  <div class="metric m-sig"><div class="m-label">Sygnały MR</div><div class="m-value" style="color:${signalCount?'var(--warn-red)':'var(--text)'}">${signalCount}</div><div class="m-sub">punktów z sygnałem</div></div>
+`;
+
+// ═══════════════════════════════════════════════════
+//  SHARED CHART HELPERS
+// ═══════════════════════════════════════════════════
+const DPR = window.devicePixelRatio || 1;
+const PAD = { top: 28, right: 95, bottom: 52, left: 56 };
+
+function setupCanvas(cvs) {
+  const r = cvs.parentElement.getBoundingClientRect();
+  const w = r.width - 2.6 * 16;
+  const h = Math.min(400, Math.max(260, w * 0.38));
+  cvs.width = w * DPR; cvs.height = h * DPR;
+  cvs.style.width = w + 'px'; cvs.style.height = h + 'px';
+  const c = cvs.getContext('2d');
+  c.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const pW = w - PAD.left - PAD.right;
+  const pH = h - PAD.top - PAD.bottom;
+  return { c, w, h, pW, pH };
+}
+
+function drawGrid(c, w, h, pW, pH, yMin, yMax, yLabel) {
   const yRange = yMax - yMin || 1;
-
-  const sx = i => PAD.left + (i / (N - 1)) * pW;
   const sy = v => PAD.top + pH - ((v - yMin) / yRange) * pH;
-
-  // ── grid Y ──
   c.strokeStyle = 'rgba(30,42,58,0.7)'; c.lineWidth = 0.5;
-  const yTicks = 6;
-  for (let i = 0; i <= yTicks; i++) {
-    const v = yMin + (yRange / yTicks) * i;
-    const y = sy(v);
+  const ticks = 5;
+  for (let i = 0; i <= ticks; i++) {
+    const v = yMin + (yRange / ticks) * i, y = sy(v);
     c.beginPath(); c.moveTo(PAD.left, y); c.lineTo(PAD.left + pW, y); c.stroke();
     c.fillStyle = '#6b7f99'; c.font = '10px "IBM Plex Mono",monospace';
     c.textAlign = 'right'; c.fillText(Math.round(v), PAD.left - 10, y + 4);
   }
-
-  // ── Y label ──
   c.save(); c.translate(13, PAD.top + pH / 2); c.rotate(-Math.PI / 2);
   c.fillStyle = '#6b7f99'; c.font = '10px "Outfit",sans-serif';
-  c.textAlign = 'center'; c.fillText('Cycle Time (dni)', 0, 0); c.restore();
+  c.textAlign = 'center'; c.fillText(yLabel, 0, 0); c.restore();
+  return sy;
+}
 
-  // ── X labels (item IDs) ──
-  c.fillStyle = '#6b7f99'; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
-  const labelStep = N <= 35 ? 1 : Math.ceil(N / 20);
-  for (let i = 0; i < N; i += labelStep) {
-    const x = sx(i);
-    c.fillText(`#${DATA[i].id}`, x, CH - PAD.bottom + 14);
-    // date below
-    const dt = new Date(DATA[i].closed);
-    const ds = `${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}`;
-    c.fillText(ds, x, CH - PAD.bottom + 26);
-  }
+function drawHLine(c, pW, sy, val, color, label, dash) {
+  const y = sy(val);
+  c.strokeStyle = color; c.lineWidth = 1.3; c.setLineDash(dash);
+  c.beginPath(); c.moveTo(PAD.left, y); c.lineTo(PAD.left + pW, y); c.stroke();
+  c.setLineDash([]);
+  c.fillStyle = color; c.font = '600 9px "IBM Plex Mono",monospace'; c.textAlign = 'left';
+  c.fillText(`${label}: ${val.toFixed(1)}`, PAD.left + pW + 5, y + 4);
+}
 
-  // ── control lines (behind data) ──
-  const drawHLine = (val, color, label, dashArr) => {
-    const y = sy(val);
-    c.strokeStyle = color; c.lineWidth = 1.4;
-    c.setLineDash(dashArr);
-    c.beginPath(); c.moveTo(PAD.left, y); c.lineTo(PAD.left + pW, y); c.stroke();
-    c.setLineDash([]);
-    // label
-    c.fillStyle = color; c.font = '600 10px "IBM Plex Mono",monospace'; c.textAlign = 'left';
-    c.fillText(`${label}: ${val.toFixed(2)}`, PAD.left + pW + 6, y + 4);
-  };
-
-  drawHLine(avgCT, '#58a6ff', 'X̄', [6, 4]);
-  drawHLine(UNPL, '#f0883e', 'UNPL', [8, 4]);
-  if (LNPL >= 0) {
-    drawHLine(LNPL, '#56d364', 'LNPL', [8, 4]);
-  } else {
-    // draw at 0 with note
-    const y0 = sy(0);
-    c.strokeStyle = '#56d364'; c.lineWidth = 1; c.setLineDash([4, 4]);
-    c.beginPath(); c.moveTo(PAD.left, y0); c.lineTo(PAD.left + pW, y0); c.stroke();
-    c.setLineDash([]);
-    c.fillStyle = '#56d364'; c.font = '500 9px "IBM Plex Mono",monospace'; c.textAlign = 'left';
-    c.fillText(`LNPL: ${LNPL.toFixed(2)}`, PAD.left + pW + 6, y0 + 4);
-    c.fillStyle = '#3d5068'; c.font = '9px "Outfit",sans-serif';
-    c.fillText('(< 0, rys. na 0)', PAD.left + pW + 6, y0 + 16);
-  }
-
-  // ── UNPL shading ──
-  c.fillStyle = 'rgba(240,136,62,0.04)';
-  c.fillRect(PAD.left, PAD.top, pW, sy(UNPL) - PAD.top);
-
-  // ── data line ──
-  c.strokeStyle = '#7ee8fa'; c.lineWidth = 1.8; c.lineJoin = 'round';
+function drawTriangle(c, x, y, size, color, hasExcl) {
   c.beginPath();
-  for (let i = 0; i < N; i++) {
-    const x = sx(i), y = sy(ctArr[i]);
-    if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
-  }
-  c.stroke();
-
-  // ── line glow ──
-  c.save(); c.globalAlpha = 0.15;
-  c.strokeStyle = '#7ee8fa'; c.lineWidth = 6; c.lineJoin = 'round';
-  c.beginPath();
-  for (let i = 0; i < N; i++) {
-    const x = sx(i), y = sy(ctArr[i]);
-    if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
-  }
-  c.stroke(); c.restore();
-
-  // ── dots ──
-  for (let i = 0; i < N; i++) {
-    const x = sx(i), y = sy(ctArr[i]);
-    const over = DATA[i].over;
-    const col = over ? '#f0883e' : '#7ee8fa';
-
-    // glow
-    const g = c.createRadialGradient(x, y, 2, x, y, over ? 14 : 10);
-    g.addColorStop(0, col + (over ? '50' : '28'));
-    g.addColorStop(1, 'transparent');
-    c.beginPath(); c.arc(x, y, over ? 14 : 10, 0, Math.PI * 2); c.fillStyle = g; c.fill();
-
-    // dot
-    c.beginPath(); c.arc(x, y, over ? 5.5 : 4.5, 0, Math.PI * 2);
-    c.fillStyle = col; c.fill();
-    if (over) { c.strokeStyle = '#f0883e88'; c.lineWidth = 2; c.stroke(); }
-
-    pts.push({ x, y, i });
+  c.moveTo(x, y - size);
+  c.lineTo(x - size * 0.85, y + size * 0.6);
+  c.lineTo(x + size * 0.85, y + size * 0.6);
+  c.closePath();
+  c.fillStyle = color; c.fill();
+  c.strokeStyle = color + '88'; c.lineWidth = 1; c.stroke();
+  if (hasExcl) {
+    c.fillStyle = '#0b0f14'; c.font = `bold ${Math.round(size*0.9)}px "IBM Plex Mono",monospace`;
+    c.textAlign = 'center'; c.fillText('!', x, y + size * 0.25);
   }
 }
 
-// ── tooltip ──
-canvas.addEventListener('mousemove', e => {
-  const r = canvas.getBoundingClientRect();
+// ═══════════════════════════════════════════════════
+//  X CHART
+// ═══════════════════════════════════════════════════
+const xCvs = document.getElementById('xChart');
+let xPts = [];
+
+function drawX() {
+  const { c, w, h, pW, pH } = setupCanvas(xCvs);
+  xPts = [];
+  const yMax = Math.max(UNPL, ...ctArr) * 1.12;
+  const yMin = Math.min(Math.max(LNPL, 0), 0);
+  const yRange = yMax - yMin || 1;
+  const sx = i => PAD.left + (i / (N - 1)) * pW;
+  const sy = drawGrid(c, w, h, pW, pH, yMin, yMax, 'Cycle Time (dni)');
+
+  // X labels
+  c.fillStyle = '#6b7f99'; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+  for (let i = 0; i < N; i++) {
+    const x = sx(i);
+    c.fillText(`#${DATA[i].id}`, x, h - PAD.bottom + 14);
+    const dt = new Date(DATA[i].closed);
+    c.fillText(`${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}`, x, h - PAD.bottom + 26);
+  }
+
+  // Control lines
+  drawHLine(c, pW, sy, avgCT, '#58a6ff', 'X̄', [6, 4]);
+  drawHLine(c, pW, sy, UNPL, '#f0883e', 'UNPL', [8, 4]);
+  if (LNPL >= 0) drawHLine(c, pW, sy, LNPL, '#56d364', 'LNPL', [8, 4]);
+  else {
+    drawHLine(c, pW, sy, 0, '#56d364', 'LNPL(' + LNPL.toFixed(1) + ')', [4, 4]);
+  }
+
+  // UNPL shading
+  c.fillStyle = 'rgba(240,136,62,0.04)';
+  c.fillRect(PAD.left, PAD.top, pW, sy(UNPL) - PAD.top);
+
+  // Line + glow
+  c.strokeStyle = '#7ee8fa'; c.lineWidth = 1.8; c.lineJoin = 'round';
+  c.beginPath();
+  for (let i = 0; i < N; i++) { const x = sx(i), y = sy(ctArr[i]); i === 0 ? c.moveTo(x,y) : c.lineTo(x,y); }
+  c.stroke();
+  c.save(); c.globalAlpha = 0.12; c.strokeStyle = '#7ee8fa'; c.lineWidth = 6; c.lineJoin = 'round';
+  c.beginPath();
+  for (let i = 0; i < N; i++) { const x = sx(i), y = sy(ctArr[i]); i === 0 ? c.moveTo(x,y) : c.lineTo(x,y); }
+  c.stroke(); c.restore();
+
+  // Dots
+  for (let i = 0; i < N; i++) {
+    const x = sx(i), y = sy(ctArr[i]);
+    const over = DATA[i].overX;
+    const col = over ? '#f0883e' : '#7ee8fa';
+    const g = c.createRadialGradient(x, y, 2, x, y, over ? 13 : 9);
+    g.addColorStop(0, col + (over ? '45' : '25')); g.addColorStop(1, 'transparent');
+    c.beginPath(); c.arc(x, y, over ? 13 : 9, 0, Math.PI*2); c.fillStyle = g; c.fill();
+    c.beginPath(); c.arc(x, y, over ? 5 : 4, 0, Math.PI*2);
+    c.fillStyle = col; c.fill();
+    if (over) { c.strokeStyle = '#f0883e88'; c.lineWidth = 2; c.stroke(); }
+    xPts.push({ x, y, i });
+  }
+}
+
+// X tooltip
+const tipX = document.getElementById('tipX');
+xCvs.addEventListener('mousemove', e => {
+  const r = xCvs.getBoundingClientRect();
   const mx = e.clientX - r.left, my = e.clientY - r.top;
-  let best = null, bestD = 28;
-  pts.forEach(p => {
-    const d = Math.hypot(p.x - mx, p.y - my);
-    if (d < bestD) { bestD = d; best = p; }
-  });
+  let best = null, bestD = 26;
+  xPts.forEach(p => { const d = Math.hypot(p.x-mx,p.y-my); if(d<bestD){bestD=d;best=p;} });
   if (best) {
     const d = DATA[best.i];
-    const dt = new Date(d.closed).toLocaleDateString('pl-PL', { day:'numeric', month:'long', year:'numeric' });
-    const mrText = d.mr !== null ? d.mr : '—';
-    const flagHTML = d.over ? `<div class="t-flag">⚠ Poza limitem kontrolnym</div>` : '';
-    tip.innerHTML = `<div class="t-id">#${d.id}</div><div class="t-val">${d.ct} dni</div><div class="t-date">${dt}</div><div style="color:var(--text-dim);font-size:0.68rem">MR: ${mrText}</div>${flagHTML}`;
-    tip.classList.add('visible');
+    const dt = new Date(d.closed).toLocaleDateString('pl-PL',{day:'numeric',month:'long',year:'numeric'});
+    const flag = d.overX ? '<div class="t-flag t-flag-red">⚠ Poza UNPL/LNPL</div>' : '';
+    tipX.innerHTML = `<div class="t-id">#${d.id}</div><div class="t-val">${d.ct} dni</div><div class="t-date">${dt}</div><div style="color:var(--text-dim);font-size:0.68rem">MR: ${d.mr!==null?d.mr:'—'}</div>${flag}`;
+    tipX.classList.add('visible');
     let tx = best.x + 14, ty = best.y - 24;
-    if (tx + 170 > CW) tx = best.x - 180;
+    if (tx + 170 > parseFloat(xCvs.style.width)) tx = best.x - 180;
     if (ty < 0) ty = 10;
-    tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
-    canvas.style.cursor = 'pointer';
-  } else {
-    tip.classList.remove('visible');
-    canvas.style.cursor = 'crosshair';
-  }
+    tipX.style.left = tx+'px'; tipX.style.top = ty+'px';
+    xCvs.style.cursor = 'pointer';
+  } else { tipX.classList.remove('visible'); xCvs.style.cursor = 'crosshair'; }
 });
-canvas.addEventListener('mouseleave', () => { tip.classList.remove('visible'); canvas.style.cursor = 'crosshair'; });
+xCvs.addEventListener('mouseleave', () => { tipX.classList.remove('visible'); });
 
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════
+//  MR CHART
+// ═══════════════════════════════════════════════════
+const mrCvs = document.getElementById('mrChart');
+let mrPts = [];
+
+function drawMR() {
+  const { c, w, h, pW, pH } = setupCanvas(mrCvs);
+  mrPts = [];
+  const yMax = Math.max(URL_MR, ...mrOnly) * 1.15;
+  const yMin = 0;
+  // MR indices: data points 1..N-1 → plotted 0..M-1
+  const sx = j => PAD.left + (j / (M - 1)) * pW; // j = 0..M-1
+  const sy = drawGrid(c, w, h, pW, pH, yMin, yMax, 'Moving Range');
+
+  // X labels (pair labels)
+  c.fillStyle = '#6b7f99'; c.font = '8.5px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+  const step = M <= 30 ? 1 : Math.ceil(M / 20);
+  for (let j = 0; j < M; j += step) {
+    const di = j + 1; // DATA index
+    c.fillText(`#${DATA[di].id}`, sx(j), h - PAD.bottom + 14);
+    const dt = new Date(DATA[di].closed);
+    c.fillText(`${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}`, sx(j), h - PAD.bottom + 25);
+  }
+
+  // ── sigma bands (fill) ──
+  // 2σ band
+  c.fillStyle = 'rgba(92,126,160,0.06)';
+  c.fillRect(PAD.left, sy(s2_hi), pW, sy(s2_lo) - sy(s2_hi));
+  // 1σ band
+  c.fillStyle = 'rgba(92,126,160,0.06)';
+  c.fillRect(PAD.left, sy(s1_hi), pW, sy(s1_lo) - sy(s1_hi));
+
+  // URL shading (above URL)
+  c.fillStyle = 'rgba(240,136,62,0.04)';
+  c.fillRect(PAD.left, PAD.top, pW, sy(URL_MR) - PAD.top);
+
+  // ── control & sigma lines ──
+  drawHLine(c, pW, sy, avgMR, '#58a6ff', 'mR̄', [6, 4]);
+  drawHLine(c, pW, sy, URL_MR, '#f0883e', 'URL', [8, 4]);
+
+  // σ lines
+  const drawSigmaLine = (val, label, color) => {
+    const y = sy(val);
+    c.strokeStyle = color; c.lineWidth = 0.7; c.setLineDash([3, 4]);
+    c.beginPath(); c.moveTo(PAD.left, y); c.lineTo(PAD.left + pW, y); c.stroke();
+    c.setLineDash([]);
+    c.fillStyle = color; c.font = '500 8px "IBM Plex Mono",monospace'; c.textAlign = 'left';
+    c.fillText(`${label}: ${val.toFixed(1)}`, PAD.left + pW + 5, y + 3);
+  };
+  drawSigmaLine(s1_hi, '+1σ', '#4d6a8a');
+  if (s1_lo > 0) drawSigmaLine(s1_lo, '−1σ', '#4d6a8a');
+  drawSigmaLine(s2_hi, '+2σ', '#5c7ea0');
+  if (s2_lo > 0) drawSigmaLine(s2_lo, '−2σ', '#5c7ea0');
+
+  // LRL at 0
+  c.strokeStyle = '#56d364'; c.lineWidth = 0.7; c.setLineDash([4, 4]);
+  const y0 = sy(0);
+  c.beginPath(); c.moveTo(PAD.left, y0); c.lineTo(PAD.left + pW, y0); c.stroke();
+  c.setLineDash([]);
+  c.fillStyle = '#56d364'; c.font = '500 8px "IBM Plex Mono",monospace'; c.textAlign = 'left';
+  c.fillText('LRL: 0', PAD.left + pW + 5, y0 + 3);
+
+  // ── Rule 4: 8-run boxes (draw first, behind everything) ──
+  rule4runs.forEach(run => {
+    const j0 = run.start - 1, j1 = run.end - 1; // convert DATA index to MR plot index
+    const x0 = sx(j0) - 8, x1 = sx(j1) + 8;
+    const allVals = [];
+    for (let j = j0; j <= j1; j++) allVals.push(mrOnly[j]);
+    const top = Math.max(...allVals), bot = Math.min(...allVals);
+    const yt = sy(top) - 8, yb = sy(bot) + 8;
+    c.strokeStyle = 'rgba(248,81,73,0.35)'; c.lineWidth = 1.5;
+    c.setLineDash([5, 3]);
+    c.strokeRect(x0, yt, x1 - x0, yb - yt);
+    c.setLineDash([]);
+    // subtle fill
+    c.fillStyle = 'rgba(248,81,73,0.04)';
+    c.fillRect(x0, yt, x1 - x0, yb - yt);
+    // label
+    c.fillStyle = 'rgba(248,81,73,0.6)'; c.font = '600 8px "IBM Plex Mono",monospace';
+    c.textAlign = 'center'; c.fillText('8 po jednej stronie', (x0 + x1) / 2, yt - 4);
+  });
+
+  // ── Rule 3: red connecting line for 3/5 > 2σ ──
+  if (rule3indices.size > 0) {
+    const sortedIdx = [...rule3indices].sort((a,b) => a - b);
+    c.strokeStyle = 'rgba(248,81,73,0.7)'; c.lineWidth = 2.5; c.lineJoin = 'round';
+    // draw segments connecting consecutive flagged points
+    c.beginPath();
+    let started = false;
+    for (let k = 0; k < sortedIdx.length; k++) {
+      const j = sortedIdx[k] - 1; // MR plot index
+      const x = sx(j), y = sy(mrOnly[j]);
+      if (!started) { c.moveTo(x, y); started = true; }
+      else {
+        // check if consecutive with previous
+        if (sortedIdx[k] === sortedIdx[k-1] + 1) {
+          c.lineTo(x, y);
+        } else {
+          c.stroke();
+          c.beginPath();
+          c.moveTo(x, y);
+        }
+      }
+    }
+    c.stroke();
+  }
+
+  // ── data line ──
+  c.strokeStyle = '#c4a0f5'; c.lineWidth = 1.6; c.lineJoin = 'round';
+  c.beginPath();
+  for (let j = 0; j < M; j++) { const x = sx(j), y = sy(mrOnly[j]); j === 0 ? c.moveTo(x,y) : c.lineTo(x,y); }
+  c.stroke();
+  // glow
+  c.save(); c.globalAlpha = 0.1; c.strokeStyle = '#c4a0f5'; c.lineWidth = 5;
+  c.beginPath();
+  for (let j = 0; j < M; j++) { const x = sx(j), y = sy(mrOnly[j]); j === 0 ? c.moveTo(x,y) : c.lineTo(x,y); }
+  c.stroke(); c.restore();
+
+  // ── dots + signals ──
+  for (let j = 0; j < M; j++) {
+    const di = j + 1; // DATA index
+    const x = sx(j), y = sy(mrOnly[j]);
+    const isR1 = rule1.has(di);
+    const isR2 = rule2.has(di);
+    const col = isR1 ? '#f85149' : '#c4a0f5';
+
+    // glow
+    const g = c.createRadialGradient(x, y, 2, x, y, isR1 ? 13 : 9);
+    g.addColorStop(0, col + (isR1 ? '40' : '22')); g.addColorStop(1, 'transparent');
+    c.beginPath(); c.arc(x, y, isR1 ? 13 : 9, 0, Math.PI*2); c.fillStyle = g; c.fill();
+
+    // dot
+    c.beginPath(); c.arc(x, y, isR1 ? 5 : 4, 0, Math.PI*2);
+    c.fillStyle = col; c.fill();
+
+    // Rule 1 triangle (red)
+    if (isR1) drawTriangle(c, x, y - 12, 8, '#f85149', true);
+    // Rule 2 triangle (yellow) — only if not already rule1
+    else if (isR2) drawTriangle(c, x, y - 10, 7, '#d29922', true);
+
+    mrPts.push({ x, y, j, di });
+  }
+}
+
+// MR tooltip
+const tipMR = document.getElementById('tipMR');
+mrCvs.addEventListener('mousemove', e => {
+  const r = mrCvs.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bestD = 26;
+  mrPts.forEach(p => { const d = Math.hypot(p.x-mx,p.y-my); if(d<bestD){bestD=d;best=p;} });
+  if (best) {
+    const di = best.di;
+    const d = DATA[di];
+    const dt = new Date(d.closed).toLocaleDateString('pl-PL',{day:'numeric',month:'long',year:'numeric'});
+    const sigs = mrSignals[di] || [];
+    let flagHTML = '';
+    if (sigs.includes('3σ')) flagHTML += '<div class="t-flag t-flag-red">▲ Poza URL (3σ)</div>';
+    if (sigs.includes('2×2σ')) flagHTML += '<div class="t-flag t-flag-yellow">▲ Para > 2σ</div>';
+    if (sigs.includes('3/5>2σ')) flagHTML += '<div class="t-flag t-flag-red">━ 3/5 poza 2σ</div>';
+    if (sigs.includes('8×side')) flagHTML += '<div class="t-flag t-flag-red">▫ 8 po jednej stronie</div>';
+    tipMR.innerHTML = `<div class="t-id">#${d.id} → mR</div><div class="t-val">${mrOnly[best.j]}</div><div class="t-date">${dt}</div><div style="color:var(--text-dim);font-size:0.68rem">|CT<sub>${di}</sub> − CT<sub>${di-1}</sub>| = |${ctArr[di]} − ${ctArr[di-1]}|</div>${flagHTML}`;
+    tipMR.classList.add('visible');
+    let tx = best.x + 14, ty = best.y - 24;
+    if (tx + 200 > parseFloat(mrCvs.style.width)) tx = best.x - 210;
+    if (ty < 0) ty = 10;
+    tipMR.style.left = tx+'px'; tipMR.style.top = ty+'px';
+    mrCvs.style.cursor = 'pointer';
+  } else { tipMR.classList.remove('visible'); mrCvs.style.cursor = 'crosshair'; }
+});
+mrCvs.addEventListener('mouseleave', () => { tipMR.classList.remove('visible'); });
+
+// ═══════════════════════════════════════════════════
 //  DATA TABLE
-// ═══════════════════════════════════════
-document.getElementById('tBody').innerHTML = DATA.map(d => {
-  const dt = new Date(d.closed);
-  const ds = dt.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
-  const cls = d.over ? ' class="over-limit"' : '';
-  return `<tr${cls}><td>${d.id}</td><td>${ds}</td><td>${d.ct}</td><td>${d.mr !== null ? d.mr : '—'}</td></tr>`;
+// ═══════════════════════════════════════════════════
+document.getElementById('tBody').innerHTML = DATA.map((d, i) => {
+  const dt = new Date(d.closed).toLocaleDateString('pl-PL',{day:'numeric',month:'short',year:'numeric'});
+  const cls = d.overX ? ' class="over-limit"' : '';
+  const sigs = mrSignals[i] || [];
+  const sigHTML = sigs.length ? sigs.map(s => {
+    const col = s === '2×2σ' ? 'var(--warn-yellow)' : 'var(--warn-red)';
+    return `<span style="color:${col};font-size:0.68rem;font-weight:600">${s}</span>`;
+  }).join(' ') : '<span style="color:var(--text-xdim)">—</span>';
+  return `<tr${cls}><td>${d.id}</td><td>${dt}</td><td>${d.ct}</td><td>${d.mr !== null ? d.mr : '—'}</td><td style="text-align:center">${sigHTML}</td></tr>`;
 }).join('');
 
-// ═══════════════════════════════════════
+// ═══════════════════════════════════════════════════
 //  INIT
-// ═══════════════════════════════════════
-window.addEventListener('resize', () => { resize(); draw(); });
-resize(); draw();
+// ═══════════════════════════════════════════════════
+function redraw() { drawX(); drawMR(); }
+window.addEventListener('resize', redraw);
+redraw();
 </script>
 </body>
 </html>
