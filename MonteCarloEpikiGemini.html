@@ -3,125 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Analiza Monte Carlo - Raport Dostarczania</title>
+    <title>Dashboard Projektowy - Monte Carlo & Burndown</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 900px; margin: 20px auto; padding: 0 20px; background-color: #f4f7f9; }
-        .card { background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); padding: 25px; margin-bottom: 30px; }
-        h2 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; }
-        .chart-container { position: relative; height: 400px; width: 100%; margin-bottom: 30px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; }
-        th, td { text-align: left; padding: 12px; border-bottom: 1px solid #eee; }
-        th { background-color: #f8f9fa; color: #555; }
-        tr:hover { background-color: #f1f1f1; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.8em; }
-        .focus-100 { background: #d4edda; color: #155724; }
-        .focus-75 { background: #fff3cd; color: #856404; }
-        .focus-50 { background: #f8d7da; color: #721c24; }
-        .info { font-size: 0.85em; color: #666; font-style: italic; margin-top: 10px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 1000px; margin: 20px auto; padding: 0 20px; background-color: #f0f2f5; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 25px; margin-bottom: 20px; border: 1px solid #e1e4e8; }
+        .full-width { grid-column: span 2; }
+        h2 { color: #1a202c; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
+        .chart-container { position: relative; height: 320px; width: 100%; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.85em; }
+        th, td { text-align: left; padding: 10px; border-bottom: 1px solid #edf2f7; }
+        th { background-color: #f7fafc; color: #4a5568; }
+        .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75em; text-transform: uppercase; }
+        .focus-100 { background: #c6f6d5; color: #22543d; }
+        .focus-75 { background: #feebc8; color: #744210; }
+        .focus-50 { background: #fed7d7; color: #822727; }
+        @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .full-width { grid-column: span 1; } }
     </style>
 </head>
 <body>
 
-<div class="card">
-    <h2>Prognoza ukończenia Backlogu (6 Epików)</h2>
-    <p>Wykres przedstawia prawdopodobieństwo ukończenia całego zakresu w czasie, w zależności od skupienia zespołu (Focus).</p>
-    <div class="chart-container">
-        <canvas id="monteCarloChart"></canvas>
+<div class="grid">
+    <div class="card">
+        <h2>Prawdopodobieństwo Ukończenia</h2>
+        <div class="chart-container">
+            <canvas id="sCurveChart"></canvas>
+        </div>
+        <p style="font-size: 0.8em; color: #718096; margin-top: 10px;">
+            Kiedy skończymy 100% backlogu? (Analiza 10k symulacji)
+        </p>
+    </div>
+
+    <div class="card">
+        <h2>Kluczowe Daty (Percentyle)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Pewność</th>
+                    <th>Focus <span class="badge focus-75">75%</span></th>
+                    <th>Focus <span class="badge focus-100">100%</span></th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>50% (Median)</td>
+                    <td>21 Wrze</td>
+                    <td>24 Sier</td>
+                </tr>
+                <tr>
+                    <td>85% (Safe)</td>
+                    <td>05 Paź</td>
+                    <td>07 Wrze</td>
+                </tr>
+                <tr>
+                    <td>95% (Commit)</td>
+                    <td>19 Paź</td>
+                    <td>21 Wrze</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card full-width">
+        <h2>Prognoza Spalania Tygodniowego (Focus 75%)</h2>
+        <div class="chart-container" style="height: 400px;">
+            <canvas id="burndownChart"></canvas>
+        </div>
+        <p style="font-size: 0.8em; color: #718096; margin-top: 10px;">
+            Słupki: Estymowane spalanie w danym tygodniu. Linia: Pozostałe elementy (Burndown).
+            <br><strong>Wskazówka:</strong> Zauważ wzrost spalania (słupki) od września dzięki "September Boost".
+        </p>
     </div>
 </div>
 
-<div class="card">
-    <h2>Szczegóły Analizy - Modele Focusu</h2>
-    <table>
-        <thead>
-            <tr>
-                <th>Poziom Ufności</th>
-                <th>Focus <span class="badge focus-50">50%</span></th>
-                <th>Focus <span class="badge focus-75">75%</span></th>
-                <th>Focus <span class="badge focus-100">100%</span></th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr>
-                <td><strong>50% (Prawdopodobne)</strong></td>
-                <td>16 Listopada 2026</td>
-                <td>21 Września 2026</td>
-                <td>24 Sierpnia 2026</td>
-            </tr>
-            <tr>
-                <td><strong>85% (Bezpieczne)</strong></td>
-                <td>30 Listopada 2026</td>
-                <td>05 Października 2026</td>
-                <td>07 Września 2026</td>
-            </tr>
-            <tr>
-                <td><strong>95% (Gwarantowane)</strong></td>
-                <td>14 Grudnia 2026</td>
-                <td>19 Października 2026</td>
-                <td>21 Września 2026</td>
-            </tr>
-        </tbody>
-    </table>
-    <p class="info">* Analiza uwzględnia 120% wzrostu wydajności od września (September Boost).</p>
-</div>
-
 <script>
-    const ctx = document.getElementById('monteCarloChart').getContext('2d');
-    const chart = new Chart(ctx, {
+    // Konfiguracja Wykresu 1: S-Curve
+    const ctxS = document.getElementById('sCurveChart').getContext('2d');
+    new Chart(ctxS, {
         type: 'line',
         data: {
-            labels: ['Sierpień', 'Wrzesień', 'Październik', 'Listopad', 'Grudzień'],
+            labels: ['Cze', 'Lip', 'Sie', 'Wrze', 'Paź', 'Lis'],
             datasets: [
-                {
-                    label: 'Focus 100%',
-                    data: [20, 95, 100, 100, 100],
-                    borderColor: '#28a745',
-                    backgroundColor: 'transparent',
-                    tension: 0.3,
-                    borderWidth: 3
-                },
-                {
-                    label: 'Focus 75%',
-                    data: [0, 60, 90, 100, 100],
-                    borderColor: '#ffc107',
-                    backgroundColor: 'transparent',
-                    tension: 0.3,
-                    borderWidth: 3
-                },
-                {
-                    label: 'Focus 50%',
-                    data: [0, 0, 10, 60, 95],
-                    borderColor: '#dc3545',
-                    backgroundColor: 'transparent',
-                    tension: 0.3,
-                    borderWidth: 3
-                }
+                { label: 'Focus 100%', data: [0, 10, 60, 95, 100, 100], borderColor: '#2f855a', backgroundColor: 'transparent', tension: 0.4 },
+                { label: 'Focus 75%', data: [0, 0, 20, 70, 90, 100], borderColor: '#d69e2e', backgroundColor: 'transparent', tension: 0.4 },
+                { label: 'Focus 50%', data: [0, 0, 0, 10, 40, 80], borderColor: '#c53030', backgroundColor: 'transparent', tension: 0.4 }
             ]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            scales: {
-                y: {
-                    beginAtZero: true,
-                    title: { display: true, text: 'Prawdopodobieństwo Ukończenia (%)' },
-                    ticks: { callback: value => value + '%' }
-                }
-            },
-            plugins: {
-                legend: { position: 'bottom' },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            return context.dataset.label + ': ' + context.raw + '% szans';
-                        }
-                    }
-                }
-            }
-        }
+        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
     });
-</script>
 
-</body>
-</html>
+    // Konfiguracja Wykresu 2: Burndown Tygodniowy
+    // Symulacja danych: Start 28 historyjek, spalamy ok
