@@ -117,8 +117,8 @@
     <span><span class="leg-line" style="border-top:2px dashed var(--unpl-color)"></span> URL (+3.27)</span>
     <span><span class="leg-line" style="border-top:2px dashed var(--lnpl-color)"></span> LRL (−3.27)</span>
     <span><span class="leg-tri" style="border-bottom:8px solid var(--warn-red)"></span> Poza limitem</span>
-    <span><span class="leg-tri" style="border-bottom:8px solid var(--warn-yellow)"></span> Para > 2σ</span>
-    <span><span class="leg-line" style="border-top:2.5px solid var(--warn-red)"></span> 3/5 > 2σ</span>
+    <span><span class="leg-tri" style="border-bottom:8px solid var(--warn-yellow)"></span> Para > 1σ</span>
+    <span><span class="leg-line" style="border-top:2.5px solid var(--warn-red)"></span> 3/5 > 1σ</span>
     <span style="border:1px dashed rgba(248,81,73,0.5);border-radius:3px;padding:0 4px;">8 po jednej stronie</span>
   </div>
 
@@ -126,8 +126,8 @@
   <div class="signal-legend">
     <h3>Reguły detekcji sygnałów (wykres mR)</h3>
     <div class="sig-item"><div class="sig-icon" style="color:var(--warn-red)">▲!</div><div>Punkt poza zakresem zmienności typowej (URL / LRL) — <strong>czerwony trójkąt</strong></div></div>
-    <div class="sig-item"><div class="sig-icon" style="color:var(--warn-yellow)">▲!</div><div>Dwa kolejne punkty ponad 2σ od średniej — <strong>żółty trójkąt</strong></div></div>
-    <div class="sig-item"><div class="sig-icon" style="color:var(--warn-red)">━</div><div>W oknie 5 kolejnych punktów min. 3 leżą poza 2σ — <strong>czerwona linia łącząca</strong></div></div>
+    <div class="sig-item"><div class="sig-icon" style="color:var(--warn-yellow)">▲!</div><div>Dwa kolejne punkty ponad 1σ od średniej — <strong>żółty trójkąt</strong></div></div>
+    <div class="sig-item"><div class="sig-icon" style="color:var(--warn-red)">━</div><div>W oknie 5 kolejnych punktów min. 3 leżą poza 1σ — <strong>czerwona linia łącząca</strong></div></div>
     <div class="sig-item"><div class="sig-icon" style="border:1px dashed rgba(248,81,73,0.4);border-radius:2px;font-size:0.6rem;line-height:1.2em;">░</div><div>8 kolejnych wartości po jednej stronie średniej — <strong>czerwona ramka</strong></div></div>
   </div>
 
@@ -208,21 +208,21 @@ for (let i = 1; i < N; i++) {
   if (mrVals[i] > URL_MR || mrVals[i] < LRL_MR) rule1.add(i);
 }
 
-// Rule 2: consecutive pair both > 2σ from mean
+// Rule 2: consecutive pair both > 1σ from mean
 const rule2 = new Set();
 for (let i = 1; i < N - 1; i++) {
   const a = mrVals[i], b = mrVals[i+1];
-  const a2 = Math.abs(a - avgMR) > 2 * sigmaMR;
-  const b2 = Math.abs(b - avgMR) > 2 * sigmaMR;
+  const a2 = Math.abs(a - avgMR) > sigmaMR;
+  const b2 = Math.abs(b - avgMR) > sigmaMR;
   if (a2 && b2) { rule2.add(i); rule2.add(i+1); }
 }
 
-// Rule 3: in any window of 5 consecutive, ≥ 3 beyond 2σ → connect with red line
+// Rule 3: in any window of 5 consecutive, ≥ 3 beyond 1σ → connect with red line
 const rule3segments = []; // arrays of indices to connect
 for (let start = 1; start <= N - 5; start++) {
   const window5 = [];
   for (let j = start; j < start + 5 && j < N; j++) window5.push(j);
-  const beyond = window5.filter(j => Math.abs(mrVals[j] - avgMR) > 2 * sigmaMR);
+  const beyond = window5.filter(j => Math.abs(mrVals[j] - avgMR) > sigmaMR);
   if (beyond.length >= 3) {
     rule3segments.push(window5); // all 5 in the window get the line
   }
@@ -254,8 +254,8 @@ const rule4runs = []; // [{start, end}]
 const mrSignals = {};
 for (let i = 1; i < N; i++) mrSignals[i] = [];
 rule1.forEach(i => mrSignals[i].push('3σ'));
-rule2.forEach(i => { if (!mrSignals[i].includes('2×2σ')) mrSignals[i].push('2×2σ'); });
-rule3indices.forEach(i => { if (!mrSignals[i].includes('3/5>2σ')) mrSignals[i].push('3/5>2σ'); });
+rule2.forEach(i => { if (!mrSignals[i].includes('2×1σ')) mrSignals[i].push('2×1σ'); });
+rule3indices.forEach(i => { if (!mrSignals[i].includes('3/5>1σ')) mrSignals[i].push('3/5>1σ'); });
 rule4runs.forEach(r => { for (let i=r.start;i<=r.end;i++) { if (!mrSignals[i].includes('8×side')) mrSignals[i].push('8×side'); }});
 
 // ═══════════════════════════════════════════════════
@@ -573,8 +573,8 @@ mrCvs.addEventListener('mousemove', e => {
     const sigs = mrSignals[di] || [];
     let flagHTML = '';
     if (sigs.includes('3σ')) flagHTML += '<div class="t-flag t-flag-red">▲ Poza URL (3σ)</div>';
-    if (sigs.includes('2×2σ')) flagHTML += '<div class="t-flag t-flag-yellow">▲ Para > 2σ</div>';
-    if (sigs.includes('3/5>2σ')) flagHTML += '<div class="t-flag t-flag-red">━ 3/5 poza 2σ</div>';
+    if (sigs.includes('2×1σ')) flagHTML += '<div class="t-flag t-flag-yellow">▲ Para > 1σ</div>';
+    if (sigs.includes('3/5>1σ')) flagHTML += '<div class="t-flag t-flag-red">━ 3/5 poza 1σ</div>';
     if (sigs.includes('8×side')) flagHTML += '<div class="t-flag t-flag-red">▫ 8 po jednej stronie</div>';
     tipMR.innerHTML = `<div class="t-id">#${d.id} → mR</div><div class="t-val">${mrOnly[best.j]}</div><div class="t-date">${dt}</div><div style="color:var(--text-dim);font-size:0.68rem">|CT<sub>${di}</sub> − CT<sub>${di-1}</sub>| = |${ctArr[di]} − ${ctArr[di-1]}|</div>${flagHTML}`;
     tipMR.classList.add('visible');
@@ -595,7 +595,7 @@ document.getElementById('tBody').innerHTML = DATA.map((d, i) => {
   const cls = d.overX ? ' class="over-limit"' : '';
   const sigs = mrSignals[i] || [];
   const sigHTML = sigs.length ? sigs.map(s => {
-    const col = s === '2×2σ' ? 'var(--warn-yellow)' : 'var(--warn-red)';
+    const col = s === '2×1σ' ? 'var(--warn-yellow)' : 'var(--warn-red)';
     return `<span style="color:${col};font-size:0.68rem;font-weight:600">${s}</span>`;
   }).join(' ') : '<span style="color:var(--text-xdim)">—</span>';
   return `<tr${cls}><td>${d.id}</td><td>${dt}</td><td>${d.ct}</td><td>${d.mr !== null ? d.mr : '—'}</td><td style="text-align:center">${sigHTML}</td></tr>`;
