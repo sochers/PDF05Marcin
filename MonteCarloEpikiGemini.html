@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Dashboard Projektowy - Monte Carlo & Burndown</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; color: #333; max-width: 1000px; margin: 20px auto; padding: 0 20px; background-color: #f0f2f5; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; max-width: 1000px; margin: 20px auto; padding: 0 20px; background-color: #f0f2f5; }
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
-        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 25px; margin-bottom: 20px; border: 1px solid #e1e4e8; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); padding: 25px; margin-bottom: 20px; border: 1px solid #e1e4e8; position: relative; }
         .full-width { grid-column: span 2; }
         h2 { color: #1a202c; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 0; }
         .chart-container { position: relative; height: 320px; width: 100%; }
@@ -18,11 +18,15 @@
         .badge { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75em; text-transform: uppercase; }
         .focus-100 { background: #c6f6d5; color: #22543d; }
         .focus-75 { background: #feebc8; color: #744210; }
-        .focus-50 { background: #fed7d7; color: #822727; }
+        .error-msg { color: red; font-weight: bold; padding: 20px; border: 1px solid red; display: none; }
         @media (max-width: 768px) { .grid { grid-template-columns: 1fr; } .full-width { grid-column: span 1; } }
     </style>
 </head>
 <body>
+
+<div id="lib-error" class="error-msg">
+    BŁĄD: Nie udało się załadować biblioteki Chart.js. Sprawdź połączenie z internetem lub ustawienia bezpieczeństwa przeglądarki.
+</div>
 
 <div class="grid">
     <div class="card">
@@ -30,9 +34,6 @@
         <div class="chart-container">
             <canvas id="sCurveChart"></canvas>
         </div>
-        <p style="font-size: 0.8em; color: #718096; margin-top: 10px;">
-            Kiedy skończymy 100% backlogu? (Analiza 10k symulacji)
-        </p>
     </div>
 
     <div class="card">
@@ -42,56 +43,65 @@
                 <tr>
                     <th>Pewność</th>
                     <th>Focus <span class="badge focus-75">75%</span></th>
-                    <th>Focus <span class="badge focus-100">100%</span></th>
+                    <th>Focus <span class="badge" style="background:#c6f6d5; color:#22543d">100%</span></th>
                 </tr>
             </thead>
             <tbody>
-                <tr>
-                    <td>50% (Median)</td>
-                    <td>21 Wrze</td>
-                    <td>24 Sier</td>
-                </tr>
-                <tr>
-                    <td>85% (Safe)</td>
-                    <td>05 Paź</td>
-                    <td>07 Wrze</td>
-                </tr>
-                <tr>
-                    <td>95% (Commit)</td>
-                    <td>19 Paź</td>
-                    <td>21 Wrze</td>
-                </tr>
+                <tr><td>50% (Median)</td><td>21 Wrze</td><td>24 Sier</td></tr>
+                <tr><td>85% (Safe)</td><td>05 Paź</td><td>07 Wrze</td></tr>
+                <tr><td>95% (Commit)</td><td>19 Paź</td><td>21 Wrze</td></tr>
             </tbody>
         </table>
     </div>
 
     <div class="card full-width">
         <h2>Prognoza Spalania Tygodniowego (Focus 75%)</h2>
-        <div class="chart-container" style="height: 400px;">
+        <div class="chart-container" style="height: 350px;">
             <canvas id="burndownChart"></canvas>
         </div>
-        <p style="font-size: 0.8em; color: #718096; margin-top: 10px;">
-            Słupki: Estymowane spalanie w danym tygodniu. Linia: Pozostałe elementy (Burndown).
-            <br><strong>Wskazówka:</strong> Zauważ wzrost spalania (słupki) od września dzięki "September Boost".
-        </p>
     </div>
 </div>
 
 <script>
-    // Konfiguracja Wykresu 1: S-Curve
+document.addEventListener('DOMContentLoaded', function() {
+    // Sprawdzenie czy biblioteka jest dostępna
+    if (typeof Chart === 'undefined') {
+        document.getElementById('lib-error').style.display = 'block';
+        return;
+    }
+
+    // Wykres 1
     const ctxS = document.getElementById('sCurveChart').getContext('2d');
     new Chart(ctxS, {
         type: 'line',
         data: {
             labels: ['Cze', 'Lip', 'Sie', 'Wrze', 'Paź', 'Lis'],
             datasets: [
-                { label: 'Focus 100%', data: [0, 10, 60, 95, 100, 100], borderColor: '#2f855a', backgroundColor: 'transparent', tension: 0.4 },
-                { label: 'Focus 75%', data: [0, 0, 20, 70, 90, 100], borderColor: '#d69e2e', backgroundColor: 'transparent', tension: 0.4 },
-                { label: 'Focus 50%', data: [0, 0, 0, 10, 40, 80], borderColor: '#c53030', backgroundColor: 'transparent', tension: 0.4 }
+                { label: 'Focus 100%', data: [0, 10, 60, 95, 100, 100], borderColor: '#2f855a', tension: 0.4 },
+                { label: 'Focus 75%', data: [0, 0, 20, 70, 90, 100], borderColor: '#d69e2e', tension: 0.4 }
             ]
         },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+        options: { responsive: true, maintainAspectRatio: false }
     });
 
-    // Konfiguracja Wykresu 2: Burndown Tygodniowy
-    // Symulacja danych: Start 28 historyjek, spalamy ok
+    // Wykres 2
+    const ctxB = document.getElementById('burndownChart').getContext('2d');
+    const weeklyBurn = [1.5, 1.6, 1.4, 1.7, 1.5, 1.6, 1.4, 1.7, 1.5, 1.6, 1.4, 1.7, 2.3, 2.4, 2.3, 2.4, 0.6];
+    let current = 28;
+    const burndownData = [28, ...weeklyBurn.map(b => { current -= b; return current.toFixed(1); })];
+
+    new Chart(ctxB, {
+        data: {
+            labels: ['Start', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10', 'T11', 'T12', 'Wrz T1', 'Wrz T2', 'Wrz T3', 'Wrz T4', 'Koniec'],
+            datasets: [
+                { type: 'line', label: 'Zostało elementów', data: burndownData, borderColor: '#3182ce', fill: false },
+                { type: 'bar', label: 'Spalanie w tyg.', data: [0, ...weeklyBurn], backgroundColor: '#cbd5e0' }
+            ]
+        },
+        options: { responsive: true, maintainAspectRatio: false }
+    });
+});
+</script>
+
+</body>
+</html>
