@@ -1,1 +1,471 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XmR — Throughput (Tempo dostarczania)</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0b0f14;--surface:#131920;--surface2:#1a2230;
+    --border:#1e2a3a;--border-hi:#2a3a50;
+    --text:#d8e3f0;--text-dim:#6b7f99;--text-xdim:#3d5068;
+    --mean:#58a6ff;--unpl:#f0883e;--lnpl:#56d364;
+    --xline:#7ee8fa;--mrline:#c4a0f5;
+    --s1:#4d6a8a;--s2:#5c7ea0;
+    --sig-blue:#58a6ff;--sig-pink:#f778ba;--sig-yellow:#d29922;
+    --warn-red:#f85149;
+    --font:'Outfit',system-ui,sans-serif;--mono:'IBM Plex Mono',monospace;
+  }
+  body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:2rem 1rem}
+  .wrap{width:100%;max-width:1260px}
 
+  .header{display:flex;justify-content:space-between;align-items:flex-end;flex-wrap:wrap;gap:.5rem;margin-bottom:1.8rem}
+  .header h1{font-size:1.5rem;font-weight:700;letter-spacing:-.03em;background:linear-gradient(135deg,#7ee8fa,#58a6ff);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .header p{color:var(--text-dim);font-size:.8rem}
+  .badge{display:inline-flex;align-items:center;gap:.3rem;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:.3rem .6rem;font-size:.68rem;font-family:var(--mono);color:var(--text-dim)}
+  .badge .dot{width:6px;height:6px;border-radius:50%}
+
+  .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:.55rem;margin-bottom:1.5rem}
+  .metric{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.8rem .9rem;position:relative;overflow:hidden}
+  .metric::before{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+  .metric.m-mean::before{background:var(--mean)} .metric.m-unpl::before{background:var(--unpl)} .metric.m-lnpl::before{background:var(--lnpl)} .metric.m-mr::before{background:var(--mrline)} .metric.m-n::before{background:var(--xline)} .metric.m-sig::before{background:var(--warn-red)}
+  .metric .ml{font-size:.6rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.07em;margin-bottom:.2rem;font-weight:500}
+  .metric .mv{font-family:var(--mono);font-size:1.25rem;font-weight:600}
+  .metric .ms{font-size:.62rem;color:var(--text-xdim);margin-top:.1rem}
+
+  .stitle{font-size:1rem;font-weight:600;margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem}
+  .stitle .pill{font-size:.58rem;font-family:var(--mono);background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:.14rem .4rem;color:var(--text-dim);font-weight:500}
+
+  .chart-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.2rem;position:relative;margin-bottom:.7rem}
+  canvas{width:100%;display:block}
+  .tooltip{position:absolute;pointer-events:none;background:var(--surface2);border:1px solid var(--border-hi);border-radius:8px;padding:.5rem .7rem;font-size:.73rem;line-height:1.5;opacity:0;transition:opacity .1s;z-index:10;box-shadow:0 8px 28px rgba(0,0,0,.55);white-space:nowrap}
+  .tooltip.visible{opacity:1}
+  .tooltip .t-id{color:var(--text-dim);font-size:.63rem}
+  .tooltip .t-val{font-family:var(--mono);font-weight:600;font-size:.92rem}
+  .tooltip .t-date{color:var(--text-dim);font-size:.66rem}
+  .tooltip .t-flag{font-weight:600;font-size:.68rem;margin-top:.12rem}
+  .tf-blue{color:var(--sig-blue)} .tf-pink{color:var(--sig-pink)} .tf-yellow{color:var(--sig-yellow)} .tf-red{color:var(--warn-red)}
+
+  .legend{display:flex;gap:1.1rem;justify-content:center;flex-wrap:wrap;font-size:.68rem;color:var(--text-dim);margin-bottom:1.5rem}
+  .legend span{display:flex;align-items:center;gap:.3rem}
+  .leg-line{width:18px;height:0;display:inline-block}
+  .leg-tri{display:inline-block;width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent}
+
+  .sig-legend{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.9rem 1.1rem;margin-bottom:1.5rem}
+  .sig-legend h3{font-size:.75rem;font-weight:600;margin-bottom:.5rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em}
+  .si{display:flex;align-items:flex-start;gap:.55rem;margin-bottom:.4rem;font-size:.73rem;line-height:1.5}
+  .si-icon{flex-shrink:0;width:20px;text-align:center;font-size:.82rem;margin-top:.02rem}
+
+  .table-section h2{font-size:1rem;font-weight:600;margin-bottom:.6rem}
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:10px;overflow-x:auto}
+  table{width:100%;border-collapse:collapse;font-size:.76rem}
+  thead th{background:var(--surface2);color:var(--text-dim);font-weight:600;text-transform:uppercase;font-size:.6rem;letter-spacing:.06em;padding:.6rem .7rem;text-align:right;border-bottom:1px solid var(--border);white-space:nowrap}
+  thead th:first-child{text-align:center;width:2.5em} thead th:nth-child(2){text-align:left}
+  tbody td{padding:.45rem .7rem;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:.76rem;text-align:right}
+  tbody td:first-child{text-align:center;color:var(--text-dim);font-size:.7rem}
+  tbody td:nth-child(2){font-family:var(--font);text-align:left;color:var(--text-dim)}
+  tbody tr:last-child td{border-bottom:none}
+  tbody tr:hover{background:rgba(126,232,250,.03)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="header">
+    <div>
+      <h1>XmR — Tempo dostarczania (Throughput)</h1>
+      <p>Individual (X) + Moving Range (mR) · styczeń–kwiecień 2025 · dane dzienne</p>
+    </div>
+    <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+      <span class="badge"><span class="dot" style="background:var(--mean)"></span> X̄ / mR̄</span>
+      <span class="badge"><span class="dot" style="background:var(--unpl)"></span> UNPL / URL</span>
+      <span class="badge"><span class="dot" style="background:var(--lnpl)"></span> LNPL / LRL</span>
+    </div>
+  </div>
+  <div class="metrics" id="metrics"></div>
+
+  <div class="stitle">Wykres X — Throughput <span class="pill">Individual Chart</span></div>
+  <div class="chart-box"><canvas id="xC"></canvas><div class="tooltip" id="tipX"></div></div>
+  <div class="legend" style="margin-bottom:2rem">
+    <span><span class="leg-line" style="border-top:2px solid var(--xline)"></span> Throughput</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--mean)"></span> X̄</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--unpl)"></span> UNPL</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--lnpl)"></span> LNPL</span>
+  </div>
+
+  <div class="stitle">Wykres mR — Moving Range <span class="pill">Ruchome rozstępy</span></div>
+  <div class="chart-box"><canvas id="mrC"></canvas><div class="tooltip" id="tipMR"></div></div>
+  <div class="legend" style="margin-bottom:1.2rem">
+    <span><span class="leg-line" style="border-top:2px solid var(--mrline)"></span> MR</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--mean)"></span> mR̄</span>
+    <span><span class="leg-line" style="border-top:1px dashed var(--s1)"></span> ±1σ</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--unpl)"></span> URL</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--lnpl)"></span> LRL</span>
+    <span>🔵 Poza URL/LRL</span>
+    <span>🩷 Para > 1σ</span>
+    <span style="border:1.5px solid var(--sig-yellow);border-radius:3px;padding:0 4px">5 × 3/5 > 1σ</span>
+  </div>
+
+  <div class="sig-legend">
+    <h3>Reguły detekcji sygnałów (wykres mR)</h3>
+    <div class="si"><div class="si-icon" style="color:var(--sig-blue)">❗</div><div>Punkt poza URL lub LRL — <strong>niebieski wykrzyknik</strong></div></div>
+    <div class="si"><div class="si-icon" style="color:var(--sig-pink)">❗</div><div>Dwa kolejne punkty po tej samej stronie średniej i oba poza 1σ — <strong>różowy wykrzyknik</strong></div></div>
+    <div class="si"><div class="si-icon" style="color:var(--sig-yellow)">▭</div><div>5 kolejnych punktów po jednej stronie średniej, z min. 3 poza 1σ — <strong>żółta ramka</strong></div></div>
+  </div>
+
+  <div class="table-section">
+    <h2>Dane szczegółowe</h2>
+    <div class="table-wrap">
+      <table><thead><tr><th>#</th><th>Data</th><th>Throughput</th><th>MR</th><th>Sygnały</th></tr></thead><tbody id="tBody"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════
+const DATA=[{d:"2025-01-07",v:0},{d:"2025-01-08",v:2},{d:"2025-01-09",v:10},{d:"2025-01-10",v:3},{d:"2025-01-11",v:0},{d:"2025-01-12",v:0},{d:"2025-01-13",v:2},{d:"2025-01-14",v:3},{d:"2025-01-15",v:7},{d:"2025-01-16",v:0},{d:"2025-01-17",v:0},{d:"2025-01-18",v:0},{d:"2025-01-19",v:0},{d:"2025-01-20",v:5},{d:"2025-01-21",v:2},{d:"2025-01-22",v:0},{d:"2025-01-23",v:0},{d:"2025-01-24",v:0},{d:"2025-01-25",v:0},{d:"2025-01-26",v:0},{d:"2025-01-27",v:1},{d:"2025-01-28",v:1},{d:"2025-01-29",v:0},{d:"2025-01-30",v:5},{d:"2025-01-31",v:4},{d:"2025-02-01",v:0},{d:"2025-02-02",v:0},{d:"2025-02-03",v:7},{d:"2025-02-04",v:0},{d:"2025-02-05",v:2},{d:"2025-02-06",v:2},{d:"2025-02-07",v:12},{d:"2025-02-08",v:0},{d:"2025-02-09",v:0},{d:"2025-02-10",v:1},{d:"2025-02-11",v:0},{d:"2025-02-12",v:0},{d:"2025-02-13",v:2},{d:"2025-02-14",v:12},{d:"2025-02-15",v:0},{d:"2025-02-16",v:0},{d:"2025-02-17",v:1},{d:"2025-02-18",v:0},{d:"2025-02-19",v:0},{d:"2025-02-20",v:3},{d:"2025-02-21",v:11},{d:"2025-02-22",v:0},{d:"2025-02-23",v:0},{d:"2025-02-24",v:6},{d:"2025-02-25",v:0},{d:"2025-02-26",v:0},{d:"2025-02-27",v:6},{d:"2025-02-28",v:7},{d:"2025-03-01",v:0},{d:"2025-03-02",v:0},{d:"2025-03-03",v:2},{d:"2025-03-04",v:0},{d:"2025-03-05",v:0},{d:"2025-03-06",v:3},{d:"2025-03-07",v:5},{d:"2025-03-08",v:0},{d:"2025-03-09",v:0},{d:"2025-03-10",v:1},{d:"2025-03-11",v:0},{d:"2025-03-12",v:0},{d:"2025-03-13",v:9},{d:"2025-03-14",v:7},{d:"2025-03-15",v:0},{d:"2025-03-16",v:0},{d:"2025-03-17",v:3},{d:"2025-03-18",v:0},{d:"2025-03-19",v:0},{d:"2025-03-20",v:4},{d:"2025-03-21",v:10},{d:"2025-03-22",v:0},{d:"2025-03-23",v:0},{d:"2025-03-24",v:1},{d:"2025-03-25",v:0},{d:"2025-03-26",v:0},{d:"2025-03-27",v:5},{d:"2025-03-28",v:1},{d:"2025-03-29",v:0},{d:"2025-03-30",v:0},{d:"2025-03-31",v:2},{d:"2025-04-01",v:0},{d:"2025-04-02",v:0},{d:"2025-04-03",v:2},{d:"2025-04-04",v:11},{d:"2025-04-05",v:0},{d:"2025-04-06",v:0},{d:"2025-04-07",v:1},{d:"2025-04-08",v:0},{d:"2025-04-09",v:0},{d:"2025-04-10",v:5},{d:"2025-04-11",v:2},{d:"2025-04-12",v:0},{d:"2025-04-13",v:0},{d:"2025-04-14",v:1},{d:"2025-04-15",v:0},{d:"2025-04-16",v:0},{d:"2025-04-17",v:4},{d:"2025-04-18",v:7},{d:"2025-04-19",v:0}];
+
+const N=DATA.length;
+const vals=DATA.map(d=>d.v);
+
+// MR
+const mrVals=[null];
+for(let i=1;i<N;i++) mrVals.push(Math.abs(vals[i]-vals[i-1]));
+const mrOnly=mrVals.slice(1);
+const M=mrOnly.length;
+
+const avgV=vals.reduce((a,b)=>a+b,0)/N;
+const avgMR=mrOnly.reduce((a,b)=>a+b,0)/M;
+
+// X limits
+const UNPL=avgV+2.66*avgMR;
+const LNPL=avgV-2.66*avgMR;
+
+// MR limits
+const URL_MR=3.27*avgMR;
+const LRL_MR=0; // -3.27*avgMR is negative for MR
+const sigmaMR=(URL_MR-avgMR)/3;
+const s1hi=avgMR+sigmaMR, s1lo=Math.max(0,avgMR-sigmaMR);
+
+DATA.forEach((d,i)=>{d.mr=mrVals[i]; d.overX=d.v>UNPL||d.v<LNPL;});
+
+// ═══════════════════════════════════════════════════
+//  MR SIGNAL DETECTION
+// ═══════════════════════════════════════════════════
+
+// Rule 1: beyond URL/LRL → blue ❗
+const rule1=new Set();
+for(let i=1;i<N;i++){if(mrVals[i]>URL_MR) rule1.add(i);}
+
+// Rule 2: two consecutive on SAME side of mean AND both beyond 1σ → pink ❗
+const rule2=new Set();
+for(let i=1;i<N-1;i++){
+  const a=mrVals[i], b=mrVals[i+1];
+  const aSide=a>=avgMR?1:-1, bSide=b>=avgMR?1:-1;
+  if(aSide!==bSide) continue;
+  const aBeyond1s=Math.abs(a-avgMR)>sigmaMR;
+  const bBeyond1s=Math.abs(b-avgMR)>sigmaMR;
+  if(aBeyond1s&&bBeyond1s){rule2.add(i);rule2.add(i+1);}
+}
+
+// Rule 3: 5 consecutive on same side, ≥3 beyond 1σ → yellow box
+const rule3boxes=[]; // {start,end} in DATA indices (1-based)
+for(let s=1;s<=N-5;s++){
+  const win=[];
+  for(let j=s;j<s+5&&j<N;j++) win.push(j);
+  if(win.length<5) continue;
+  // all same side
+  const sides=win.map(j=>mrVals[j]>=avgMR?1:-1);
+  const allSame=sides.every(s=>s===sides[0]);
+  if(!allSame) continue;
+  const beyond=win.filter(j=>Math.abs(mrVals[j]-avgMR)>sigmaMR);
+  if(beyond.length>=3) rule3boxes.push({start:win[0],end:win[win.length-1]});
+}
+// merge overlapping boxes
+const rule3merged=[];
+rule3boxes.forEach(b=>{
+  if(rule3merged.length&&b.start<=rule3merged[rule3merged.length-1].end+1){
+    rule3merged[rule3merged.length-1].end=Math.max(rule3merged[rule3merged.length-1].end,b.end);
+  } else rule3merged.push({...b});
+});
+const rule3set=new Set();
+rule3merged.forEach(b=>{for(let i=b.start;i<=b.end;i++) rule3set.add(i);});
+
+// signals map
+const mrSig={};
+for(let i=1;i<N;i++) mrSig[i]=[];
+rule1.forEach(i=>mrSig[i].push('URL'));
+rule2.forEach(i=>{if(!mrSig[i].includes('2×1σ')) mrSig[i].push('2×1σ');});
+rule3set.forEach(i=>{if(!mrSig[i].includes('5/3>1σ')) mrSig[i].push('5/3>1σ');});
+
+// ═══════════════════════════════════════════════════
+//  METRICS
+// ═══════════════════════════════════════════════════
+const sigCount=Object.values(mrSig).filter(v=>v.length).length;
+document.getElementById('metrics').innerHTML=`
+  <div class="metric m-n"><div class="ml">Obserwacje</div><div class="mv">${N}</div><div class="ms">${M} moving ranges</div></div>
+  <div class="metric m-mean"><div class="ml">Średnia (X̄)</div><div class="mv">${avgV.toFixed(2)}</div><div class="ms">szt / dzień</div></div>
+  <div class="metric m-mr"><div class="ml">Śr. MR (mR̄)</div><div class="mv">${avgMR.toFixed(2)}</div><div class="ms">σ<sub>MR</sub> = ${sigmaMR.toFixed(2)}</div></div>
+  <div class="metric m-unpl"><div class="ml">UNPL</div><div class="mv">${UNPL.toFixed(2)}</div><div class="ms">X̄ + 2.66·mR̄</div></div>
+  <div class="metric m-lnpl"><div class="ml">LNPL</div><div class="mv">${LNPL.toFixed(2)}</div><div class="ms">X̄ − 2.66·mR̄</div></div>
+  <div class="metric m-sig"><div class="ml">Sygnały MR</div><div class="mv" style="color:${sigCount?'var(--warn-red)':'var(--text)'}">${sigCount}</div><div class="ms">punktów z sygnałem</div></div>
+`;
+
+// ═══════════════════════════════════════════════════
+//  CHART HELPERS
+// ═══════════════════════════════════════════════════
+const DPR=window.devicePixelRatio||1;
+const PAD={top:26,right:92,bottom:46,left:52};
+
+function initCvs(el){
+  const r=el.parentElement.getBoundingClientRect();
+  const w=r.width-2.4*16, h=Math.min(380,Math.max(240,w*.36));
+  el.width=w*DPR;el.height=h*DPR;
+  el.style.width=w+'px';el.style.height=h+'px';
+  const c=el.getContext('2d');c.setTransform(DPR,0,0,DPR,0,0);
+  return{c,w,h,pW:w-PAD.left-PAD.right,pH:h-PAD.top-PAD.bottom};
+}
+
+function gridY(c,w,h,pW,pH,yMin,yMax,label){
+  const yr=yMax-yMin||1;
+  const sy=v=>PAD.top+pH-((v-yMin)/yr)*pH;
+  c.strokeStyle='rgba(30,42,58,.7)';c.lineWidth=.5;
+  for(let i=0;i<=5;i++){
+    const v=yMin+(yr/5)*i,y=sy(v);
+    c.beginPath();c.moveTo(PAD.left,y);c.lineTo(PAD.left+pW,y);c.stroke();
+    c.fillStyle='#6b7f99';c.font='9px "IBM Plex Mono",monospace';c.textAlign='right';
+    c.fillText(Math.round(v),PAD.left-8,y+3);
+  }
+  c.save();c.translate(12,PAD.top+pH/2);c.rotate(-Math.PI/2);
+  c.fillStyle='#6b7f99';c.font='9px "Outfit",sans-serif';c.textAlign='center';c.fillText(label,0,0);c.restore();
+  return sy;
+}
+
+function hLine(c,pW,sy,val,col,label,dash){
+  const y=sy(val);
+  c.strokeStyle=col;c.lineWidth=1.2;c.setLineDash(dash);
+  c.beginPath();c.moveTo(PAD.left,y);c.lineTo(PAD.left+pW,y);c.stroke();c.setLineDash([]);
+  c.fillStyle=col;c.font='600 8.5px "IBM Plex Mono",monospace';c.textAlign='left';
+  c.fillText(`${label}: ${val.toFixed(2)}`,PAD.left+pW+4,y+3);
+}
+
+function xLabels(c,n,h,sx,getData){
+  c.fillStyle='#6b7f99';c.font='7.5px "IBM Plex Mono",monospace';c.textAlign='center';
+  const step=n>60?7:n>30?3:1;
+  for(let i=0;i<n;i+=step){
+    const x=sx(i),info=getData(i);
+    const dt=new Date(info);
+    c.fillText(`${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}`,x,h-PAD.bottom+12);
+  }
+}
+
+function drawExcl(c,x,y,color,size){
+  // circle with !
+  c.beginPath();c.arc(x,y-size-4,size,0,Math.PI*2);
+  c.fillStyle=color+'30';c.fill();
+  c.strokeStyle=color;c.lineWidth=1.5;c.stroke();
+  c.fillStyle=color;c.font=`bold ${Math.round(size*1.4)}px "IBM Plex Mono",monospace`;
+  c.textAlign='center';c.fillText('!',x,y-size-4+size*0.5);
+}
+
+// ═══════════════════════════════════════════════════
+//  X CHART
+// ═══════════════════════════════════════════════════
+const xEl=document.getElementById('xC');
+let xPts=[];
+
+function drawX(){
+  const{c,w,h,pW,pH}=initCvs(xEl);xPts=[];
+  const yMax=Math.max(UNPL,...vals)*1.12;
+  const yMin=Math.min(0,LNPL<0?0:LNPL);
+  const sx=i=>PAD.left+(i/(N-1))*pW;
+  const sy=gridY(c,w,h,pW,pH,yMin,yMax,'Throughput (szt/dzień)');
+  xLabels(c,N,h,sx,i=>DATA[i].d);
+
+  hLine(c,pW,sy,avgV,'#58a6ff','X̄',[6,4]);
+  hLine(c,pW,sy,UNPL,'#f0883e','UNPL',[8,4]);
+  if(LNPL>=0) hLine(c,pW,sy,LNPL,'#56d364','LNPL',[8,4]);
+  else{
+    const y0=sy(0);
+    c.strokeStyle='#56d364';c.lineWidth=.8;c.setLineDash([4,4]);
+    c.beginPath();c.moveTo(PAD.left,y0);c.lineTo(PAD.left+pW,y0);c.stroke();c.setLineDash([]);
+    c.fillStyle='#56d364';c.font='500 8px "IBM Plex Mono",monospace';c.textAlign='left';
+    c.fillText(`LNPL: ${LNPL.toFixed(2)} (rys.0)`,PAD.left+pW+4,y0+3);
+  }
+
+  // line
+  c.strokeStyle='#7ee8fa';c.lineWidth=1.6;c.lineJoin='round';
+  c.beginPath();
+  for(let i=0;i<N;i++){const x=sx(i),y=sy(vals[i]);i===0?c.moveTo(x,y):c.lineTo(x,y);}
+  c.stroke();
+  // glow
+  c.save();c.globalAlpha=.1;c.strokeStyle='#7ee8fa';c.lineWidth=5;c.lineJoin='round';c.beginPath();
+  for(let i=0;i<N;i++){const x=sx(i),y=sy(vals[i]);i===0?c.moveTo(x,y):c.lineTo(x,y);}
+  c.stroke();c.restore();
+
+  // dots
+  for(let i=0;i<N;i++){
+    const x=sx(i),y=sy(vals[i]),over=DATA[i].overX;
+    const col=over?'#f0883e':'#7ee8fa';
+    const g=c.createRadialGradient(x,y,1.5,x,y,over?11:8);
+    g.addColorStop(0,col+(over?'40':'20'));g.addColorStop(1,'transparent');
+    c.beginPath();c.arc(x,y,over?11:8,0,Math.PI*2);c.fillStyle=g;c.fill();
+    c.beginPath();c.arc(x,y,over?4.5:3.5,0,Math.PI*2);c.fillStyle=col;c.fill();
+    if(over){c.strokeStyle='#f0883e88';c.lineWidth=1.5;c.stroke();}
+    xPts.push({x,y,i});
+  }
+}
+
+// X tooltip
+const tipXEl=document.getElementById('tipX');
+xEl.addEventListener('mousemove',e=>{
+  const r=xEl.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  let best=null,bD=24;
+  xPts.forEach(p=>{const d=Math.hypot(p.x-mx,p.y-my);if(d<bD){bD=d;best=p;}});
+  if(best){
+    const d=DATA[best.i];
+    const dt=new Date(d.d).toLocaleDateString('pl-PL',{day:'numeric',month:'long',year:'numeric'});
+    const flag=d.overX?'<div class="t-flag tf-red">⚠ Poza UNPL/LNPL</div>':'';
+    tipXEl.innerHTML=`<div class="t-id">#${best.i+1}</div><div class="t-val">${d.v} szt</div><div class="t-date">${dt}</div>${flag}`;
+    tipXEl.classList.add('visible');
+    let tx=best.x+12,ty=best.y-22;
+    if(tx+160>parseFloat(xEl.style.width))tx=best.x-170;
+    if(ty<0)ty=8;
+    tipXEl.style.left=tx+'px';tipXEl.style.top=ty+'px';
+    xEl.style.cursor='pointer';
+  } else{tipXEl.classList.remove('visible');xEl.style.cursor='crosshair';}
+});
+xEl.addEventListener('mouseleave',()=>tipXEl.classList.remove('visible'));
+
+// ═══════════════════════════════════════════════════
+//  MR CHART
+// ═══════════════════════════════════════════════════
+const mrEl=document.getElementById('mrC');
+let mrPts=[];
+
+function drawMR(){
+  const{c,w,h,pW,pH}=initCvs(mrEl);mrPts=[];
+  const yMax=Math.max(URL_MR,...mrOnly)*1.15;
+  const yMin=0;
+  const sx=j=>PAD.left+(j/(M-1))*pW;
+  const sy=gridY(c,w,h,pW,pH,yMin,yMax,'Moving Range');
+  xLabels(c,M,h,sx,j=>DATA[j+1].d);
+
+  // sigma bands
+  c.fillStyle='rgba(92,126,160,.05)';
+  c.fillRect(PAD.left,sy(s1hi),pW,sy(s1lo)-sy(s1hi));
+  c.fillStyle='rgba(240,136,62,.03)';
+  c.fillRect(PAD.left,PAD.top,pW,sy(URL_MR)-PAD.top);
+
+  // lines
+  hLine(c,pW,sy,avgMR,'#58a6ff','mR̄',[6,4]);
+  hLine(c,pW,sy,URL_MR,'#f0883e','URL',[8,4]);
+  // sigma
+  const sLine=(val,label,col)=>{
+    const y=sy(val);c.strokeStyle=col;c.lineWidth=.6;c.setLineDash([3,4]);
+    c.beginPath();c.moveTo(PAD.left,y);c.lineTo(PAD.left+pW,y);c.stroke();c.setLineDash([]);
+    c.fillStyle=col;c.font='500 7.5px "IBM Plex Mono",monospace';c.textAlign='left';
+    c.fillText(`${label}: ${val.toFixed(1)}`,PAD.left+pW+4,y+3);
+  };
+  sLine(s1hi,'+1σ','#4d6a8a');
+  if(s1lo>0) sLine(s1lo,'−1σ','#4d6a8a');
+  // LRL at 0
+  c.strokeStyle='#56d364';c.lineWidth=.6;c.setLineDash([4,4]);
+  const y0=sy(0);c.beginPath();c.moveTo(PAD.left,y0);c.lineTo(PAD.left+pW,y0);c.stroke();c.setLineDash([]);
+  c.fillStyle='#56d364';c.font='500 7.5px "IBM Plex Mono",monospace';c.textAlign='left';
+  c.fillText('LRL: 0',PAD.left+pW+4,y0+3);
+
+  // ── Rule 3: yellow boxes ──
+  rule3merged.forEach(b=>{
+    const j0=b.start-1, j1=b.end-1;
+    const x0=sx(j0)-6, x1=sx(j1)+6;
+    const bVals=[];for(let j=j0;j<=j1;j++) bVals.push(mrOnly[j]);
+    const top=Math.max(...bVals),bot=Math.min(...bVals);
+    const yt=sy(top)-10,yb=sy(bot)+10;
+    // yellow box
+    c.strokeStyle='rgba(210,153,34,.6)';c.lineWidth=2;
+    c.setLineDash([6,3]);c.strokeRect(x0,yt,x1-x0,yb-yt);c.setLineDash([]);
+    c.fillStyle='rgba(210,153,34,.06)';c.fillRect(x0,yt,x1-x0,yb-yt);
+    // label
+    c.fillStyle='rgba(210,153,34,.8)';c.font='600 7.5px "IBM Plex Mono",monospace';
+    c.textAlign='center';c.fillText('5 kolejnych · 3/5 > 1σ',(x0+x1)/2,yt-4);
+  });
+
+  // ── data line ──
+  c.strokeStyle='#c4a0f5';c.lineWidth=1.4;c.lineJoin='round';c.beginPath();
+  for(let j=0;j<M;j++){const x=sx(j),y=sy(mrOnly[j]);j===0?c.moveTo(x,y):c.lineTo(x,y);}
+  c.stroke();
+  c.save();c.globalAlpha=.08;c.strokeStyle='#c4a0f5';c.lineWidth=4;c.beginPath();
+  for(let j=0;j<M;j++){const x=sx(j),y=sy(mrOnly[j]);j===0?c.moveTo(x,y):c.lineTo(x,y);}
+  c.stroke();c.restore();
+
+  // ── dots + signals ──
+  for(let j=0;j<M;j++){
+    const di=j+1;
+    const x=sx(j),y=sy(mrOnly[j]);
+    const isR1=rule1.has(di),isR2=rule2.has(di);
+    const col=isR1?'#f85149':'#c4a0f5';
+
+    const g=c.createRadialGradient(x,y,1.5,x,y,isR1?12:8);
+    g.addColorStop(0,col+(isR1?'38':'18'));g.addColorStop(1,'transparent');
+    c.beginPath();c.arc(x,y,isR1?12:8,0,Math.PI*2);c.fillStyle=g;c.fill();
+    c.beginPath();c.arc(x,y,isR1?4.5:3.5,0,Math.PI*2);c.fillStyle=col;c.fill();
+
+    // Rule 1: blue ❗
+    if(isR1) drawExcl(c,x,y,'#58a6ff',7);
+    // Rule 2: pink ❗ (only if not already rule1)
+    else if(isR2) drawExcl(c,x,y,'#f778ba',6);
+
+    mrPts.push({x,y,j,di});
+  }
+}
+
+// MR tooltip
+const tipMREl=document.getElementById('tipMR');
+mrEl.addEventListener('mousemove',e=>{
+  const r=mrEl.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  let best=null,bD=24;
+  mrPts.forEach(p=>{const d=Math.hypot(p.x-mx,p.y-my);if(d<bD){bD=d;best=p;}});
+  if(best){
+    const di=best.di;
+    const dt=new Date(DATA[di].d).toLocaleDateString('pl-PL',{day:'numeric',month:'long',year:'numeric'});
+    const sigs=mrSig[di]||[];
+    let fl='';
+    if(sigs.includes('URL')) fl+='<div class="t-flag tf-blue">❗ Poza URL</div>';
+    if(sigs.includes('2×1σ')) fl+='<div class="t-flag tf-pink">❗ Para > 1σ (ta sama strona)</div>';
+    if(sigs.includes('5/3>1σ')) fl+='<div class="t-flag tf-yellow">▭ 5 kolejnych · 3/5 > 1σ</div>';
+    tipMREl.innerHTML=`<div class="t-id">#${di+1} → mR</div><div class="t-val">${mrOnly[best.j]}</div><div class="t-date">${dt}</div><div style="color:var(--text-dim);font-size:.65rem">|${vals[di]}−${vals[di-1]}|</div>${fl}`;
+    tipMREl.classList.add('visible');
+    let tx=best.x+12,ty=best.y-22;
+    if(tx+200>parseFloat(mrEl.style.width))tx=best.x-210;
+    if(ty<0)ty=8;
+    tipMREl.style.left=tx+'px';tipMREl.style.top=ty+'px';
+    mrEl.style.cursor='pointer';
+  } else{tipMREl.classList.remove('visible');mrEl.style.cursor='crosshair';}
+});
+mrEl.addEventListener('mouseleave',()=>tipMREl.classList.remove('visible'));
+
+// ═══════════════════════════════════════════════════
+//  TABLE
+// ═══════════════════════════════════════════════════
+document.getElementById('tBody').innerHTML=DATA.map((d,i)=>{
+  const dt=new Date(d.d).toLocaleDateString('pl-PL',{day:'numeric',month:'short',year:'numeric'});
+  const cls=d.overX?' style="color:var(--unpl);font-weight:600"':'';
+  const sigs=mrSig[i]||[];
+  const sigH=sigs.length?sigs.map(s=>{
+    const col=s==='URL'?'var(--sig-blue)':s==='2×1σ'?'var(--sig-pink)':'var(--sig-yellow)';
+    return `<span style="color:${col};font-weight:600;font-size:.67rem">${s}</span>`;
+  }).join(' '):'<span style="color:var(--text-xdim)">—</span>';
+  return `<tr><td>${i+1}</td><td>${dt}</td><td${cls}>${d.v}</td><td>${d.mr!==null?d.mr:'—'}</td><td style="text-align:center">${sigH}</td></tr>`;
+}).join('');
+
+// ═══════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════
+function redraw(){drawX();drawMR();}
+window.addEventListener('resize',redraw);
+redraw();
+</script>
+</body>
+</html>
