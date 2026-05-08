@@ -2,109 +2,207 @@
 <html lang="pl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Monte Carlo Dashboard</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <title>Dashboard Monte Carlo 3.0 - Offline Ready</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
-        :root { --primary: #2ecc71; --secondary: #95a5a6; --bg: #f8f9fa; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #2c3e50; }
-        .container { max-width: 1100px; margin: 0 auto; }
-        .grid { display: grid; grid-template-columns: 1fr 350px; gap: 20px; margin-bottom: 20px; }
-        .card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid #e0e0e0; }
-        h2 { margin-top: 0; font-size: 1.2rem; border-left: 4px solid var(--primary); padding-left: 10px; }
-        
-        /* Form controls */
-        .controls { display: flex; gap: 20px; margin-bottom: 15px; align-items: center; background: #fff; padding: 15px; border-radius: 8px; }
-        select, input { padding: 8px; border-radius: 5px; border: 1px solid #ccc; }
-        
-        /* Table styles */
+        :root { --primary: #2ecc71; --bg: #f4f7f9; --card: #ffffff; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: var(--bg); margin: 0; padding: 20px; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .card { background: var(--card); border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); padding: 20px; margin-bottom: 20px; border: 1px solid #e1e8ed; }
+        h2 { margin-top: 0; font-size: 1.1rem; color: #2c3e50; border-left: 5px solid var(--primary); padding-left: 12px; }
+        .grid { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; }
+        .controls { display: flex; align-items: center; gap: 15px; background: #2c3e50; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        select, input { padding: 8px; border-radius: 4px; border: none; }
+        #run-btn { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        #run-btn:hover { background: #27ae60; }
+        .chart-container { position: relative; height: 350px; width: 100%; }
         table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th, td { padding: 8px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: #fdfdfd; }
-        .creep-input { width: 45px; padding: 3px; text-align: center; border: 1px solid #ddd; border-radius: 4px; }
-        .creep-input:focus { border-color: var(--primary); outline: none; }
-
-        .summary-table td { font-weight: bold; color: #2c3e50; }
-        .highlight { color: var(--primary); }
-
-        .chart-container { height: 300px; width: 100%; position: relative; }
-        .full-width { grid-column: 1 / -1; }
-        
-        #update-btn { background: var(--primary); color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
-        #update-btn:hover { background: #27ae60; transform: translateY(-1px); }
+        th, td { padding: 10px; border-bottom: 1px solid #eee; text-align: center; }
+        th { background: #f8f9fa; }
+        .creep-input { width: 40px; text-align: center; border: 1px solid #ccc; border-radius: 3px; }
+        #debug-log { background: #fee; color: red; padding: 10px; border-radius: 5px; display: none; margin-bottom: 20px; font-family: monospace; }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="controls card">
+    <div id="debug-log"></div>
+
+    <div class="controls">
         <strong>Konfiguracja:</strong>
-        <label>Focus zespołu: 
-            <select id="focus-select">
+        <label>Focus: 
+            <select id="focus">
                 <option value="0.5">50%</option>
                 <option value="0.75" selected>75%</option>
                 <option value="1.0">100%</option>
             </select>
         </label>
-        <button id="update-btn">PRZELICZ SYMULACJĘ</button>
-        <span style="font-size: 0.8rem; color: #7f8c8d;">(10,000 iteracji przy każdej zmianie)</span>
+        <button id="run-btn">PRZELICZ SYMULACJĘ (10k)</button>
     </div>
 
     <div class="grid">
         <div class="card">
-            <h2>Burndown & Forecast</h2>
+            <h2>Burndown & Prognoza Spalania</h2>
             <div class="chart-container">
-                <canvas id="burndownChart"></canvas>
+                <canvas id="mainChart"></canvas>
             </div>
         </div>
-
         <div class="card">
-            <h2>Prognoza Ukończenia (Percentyle)</h2>
-            <table class="summary-table">
+            <h2>Kluczowe Daty (Monte Carlo)</h2>
+            <table id="stats-table">
                 <thead><tr><th>Ufność</th><th>Data</th></tr></thead>
-                <tbody id="percentile-body">
-                    </tbody>
+                <tbody></tbody>
             </table>
-            <p style="font-size: 0.75rem; color: #666; margin-top: 15px;">
-                Analiza uwzględnia historyczny throughput oraz 120% boostu we wrześniu.
-            </p>
-        </div>
-
-        <div class="card full-width">
-            <h2>Scope Creep & Przyrosty (Tydzień po tygodniu)</h2>
-            <div style="overflow-x: auto;">
-                <table id="creep-table">
-                    <thead>
-                        <tr id="creep-header"><th>Tydzień</th></tr>
-                        <tr id="creep-inputs"><td>Dodatkowe zadania</td></tr>
-                    </thead>
-                </table>
+            <div style="margin-top:20px; font-size:0.8rem; color:#666;">
+                * Linia szara (przerywana) to plan bazowy (0 creep).<br>
+                * Linia zielona to Twoja aktualna sytuacja.
             </div>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Scope Creep (Dodatkowe historyjki w danym tygodniu)</h2>
+        <div style="overflow-x: auto;">
+            <table id="creep-table">
+                <tr id="creep-header"><th>Tydzień</th></tr>
+                <tr id="creep-inputs"><td>Dodatki</td></tr>
+            </table>
         </div>
     </div>
 </div>
 
 <script>
-    // --- KONFIGURACJA DANYCH WEJŚCIOWYCH ---
-    const epics = [[4,6], [3,5], [3,4], [3,5], [4,7], [4,8]];
-    const histThroughput = [3, 4, 5, 4, 2, 7, 4, 5];
-    const medianThroughput = 4;
-    const startDate = new Date(2026, 5, 1); // 1 Czerwca
-    const numWeeks = 18; // Do połowy Października dla marginesu
+window.onerror = function(msg, url, line) {
+    const log = document.getElementById('debug-log');
+    log.style.display = 'block';
+    log.innerHTML += "BŁĄD: " + msg + " (linia " + line + ")<br>";
+};
 
-    // Generowanie dat tygodniowych
-    const weekLabels = [];
-    for(let i=0; i<numWeeks; i++) {
-        let d = new Date(startDate);
+document.addEventListener('DOMContentLoaded', function() {
+    // 1. Ustawienia podstawowe
+    const epics = [[4,6], [3,5], [3,4], [3,5], [4,7], [4,8]];
+    const histTP = [3, 4, 5, 4, 2, 7, 4, 5];
+    const medianTP = 4;
+    const start = new Date(2026, 5, 1);
+    const weeksCount = 18;
+    
+    const labels = [];
+    for(let i=0; i<=weeksCount; i++) {
+        let d = new Date(start);
         d.setDate(d.getDate() + (i * 7));
-        weekLabels.push(d.toLocaleDateString('pl-PL', {day:'numeric', month:'short'}));
+        labels.push(d.toLocaleDateString('pl-PL', {day:'numeric', month:'short'}));
     }
 
-    // --- INICJALIZACJA TABELI SCOPE CREEP ---
-    const headerRow = document.getElementById('creep-header');
-    const inputRow = document.getElementById('creep-inputs');
-    weekLabels.forEach((label, i) => {
-        let th = document.createElement('th'); th.innerText = label;
-        headerRow.appendChild(th);
+    // 2. Generowanie tabeli Scope Creep
+    const hRow = document.getElementById('creep-header');
+    const iRow = document.getElementById('creep-inputs');
+    for(let i=1; i<labels.length; i++) {
+        let th = document.createElement('th'); th.innerText = labels[i];
+        hRow.appendChild(th);
         let td = document.createElement('td');
-        td.innerHTML = `<input type="number
+        td.innerHTML = `<input type="number" class="creep-input" data-idx="${i-1}" value="0" min="0">`;
+        iRow.appendChild(td);
+    }
+
+    let myChart = null;
+
+    function run() {
+        const focus = parseFloat(document.getElementById('focus').value);
+        const creeps = Array.from(document.querySelectorAll('.creep-input')).map(i => parseInt(i.value) || 0);
+        
+        const iterations = 10000;
+        let finishedOnWeeks = [];
+        let paths = [];
+
+        for(let i=0; i<iterations; i++) {
+            let backlog = epics.reduce((s, r) => s + (Math.floor(Math.random()*(r[1]-r[0]+1))+r[0]), 0);
+            let path = [backlog];
+            let rem = backlog;
+            let doneW = -1;
+
+            for(let w=0; w<weeksCount; w++) {
+                rem += (creeps[w] || 0);
+                let tp = histTP[Math.floor(Math.random()*histTP.length)];
+                if (w >= 13) tp = medianTP * 1.2; // Sept boost
+                
+                rem -= (tp / 2) * focus;
+                if(rem < 0) rem = 0;
+                path.push(rem);
+                if(rem <= 0 && doneW === -1) doneW = w;
+            }
+            finishedOnWeeks.push(doneW === -1 ? weeksCount : doneW);
+            if(i < 500) paths.push(path); // Próbka do mediany
+        }
+
+        // Statystyki
+        finishedOnWeeks.sort((a,b) => a-b);
+        const tableBody = document.querySelector('#stats-table tbody');
+        const pcts = [0.5, 0.85, 0.95];
+        const pNames = ["50% (Prawdopodobne)", "85% (Bezpieczne)", "95% (Krytyczne)"];
+        tableBody.innerHTML = pcts.map((p, idx) => {
+            const wIdx = finishedOnWeeks[Math.floor(iterations * p)];
+            const date = labels[wIdx] || "Październik+";
+            const color = idx === 0 ? "#2ecc71" : (idx === 1 ? "#f39c12" : "#e74c3c");
+            return `<tr><td>${pNames[idx]}</td><td style="color:${color}; font-weight:bold">${date}</td></tr>`;
+        }).join('');
+
+        // Obliczanie średniej ścieżki
+        const avgPath = [];
+        for(let w=0; w<=weeksCount; w++) {
+            let sum = 0;
+            let count = Math.min(paths.length, 500);
+            for(let j=0; j<count; j++) sum += paths[j][w];
+            avgPath.push(sum/count);
+        }
+
+        // Wykres
+        const ctx = document.getElementById('mainChart').getContext('2d');
+        if(myChart) myChart.destroy();
+        
+        // Baseline (stały)
+        const baseline = [28, 26.5, 25, 23.5, 22, 20.5, 19, 17.5, 16, 14.5, 13, 11.5, 10, 7.6, 5.2, 2.8, 0.4, 0];
+
+        myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: 'Twoja Prognoza',
+                        data: avgPath,
+                        borderColor: '#2ecc71',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        fill: false,
+                        tension: 0.2
+                    },
+                    {
+                        label: 'Plan Pierwotny',
+                        data: baseline,
+                        borderColor: '#bdc3c7',
+                        borderDash: [5, 5],
+                        pointRadius: 0,
+                        fill: false
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: { y: { beginAtZero: true, title: {display:true, text:'Historyjki'} } },
+                plugins: { legend: { position: 'top' } }
+            }
+        });
+    }
+
+    document.getElementById('run-btn').onclick = run;
+    document.getElementById('creep-table').oninput = run;
+    document.getElementById('focus').onchange = run;
+
+    // Start
+    run();
+});
+</script>
+</body>
+</html>
