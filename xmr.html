@@ -1,1 +1,413 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>XmR Chart — Cycle Time</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
 
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+  :root {
+    --bg: #0b0f14;
+    --surface: #131920;
+    --surface2: #1a2230;
+    --border: #1e2a3a;
+    --border-hi: #2a3a50;
+    --text: #d8e3f0;
+    --text-dim: #6b7f99;
+    --text-xdim: #3d5068;
+    --mean-color: #58a6ff;
+    --unpl-color: #f0883e;
+    --lnpl-color: #56d364;
+    --line-color: #7ee8fa;
+    --dot-color: #7ee8fa;
+    --dot-over: #f0883e;
+    --font: 'Outfit', system-ui, sans-serif;
+    --mono: 'IBM Plex Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 2rem 1rem;
+  }
+
+  .wrap { width: 100%; max-width: 1200px; }
+
+  /* Header */
+  .header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1.8rem;
+  }
+  .header h1 {
+    font-size: 1.55rem; font-weight: 700; letter-spacing: -0.03em;
+    background: linear-gradient(135deg, #7ee8fa 0%, #58a6ff 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .header p { color: var(--text-dim); font-size: 0.8rem; font-weight: 400; }
+  .badge {
+    display: inline-flex; align-items: center; gap: 0.3rem;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 0.3rem 0.6rem;
+    font-size: 0.7rem; font-family: var(--mono); color: var(--text-dim);
+  }
+  .badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* Metric cards */
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 0.6rem; margin-bottom: 1.6rem; }
+  .metric {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.9rem 1rem; position: relative; overflow: hidden;
+  }
+  .metric::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .metric.m-mean::before { background: var(--mean-color); }
+  .metric.m-unpl::before { background: var(--unpl-color); }
+  .metric.m-lnpl::before { background: var(--lnpl-color); }
+  .metric.m-mr::before { background: var(--text-xdim); }
+  .metric.m-n::before { background: var(--line-color); }
+  .metric .m-label {
+    font-size: 0.62rem; color: var(--text-dim); text-transform: uppercase;
+    letter-spacing: 0.07em; margin-bottom: 0.25rem; font-weight: 500;
+  }
+  .metric .m-value { font-family: var(--mono); font-size: 1.35rem; font-weight: 600; }
+  .metric .m-sub { font-size: 0.65rem; color: var(--text-xdim); margin-top: 0.1rem; }
+
+  /* Chart */
+  .chart-box {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.3rem; position: relative; margin-bottom: 1rem;
+  }
+  canvas { width: 100%; display: block; }
+
+  .tooltip {
+    position: absolute; pointer-events: none;
+    background: var(--surface2); border: 1px solid var(--border-hi);
+    border-radius: 8px; padding: 0.55rem 0.75rem;
+    font-size: 0.75rem; line-height: 1.55; opacity: 0;
+    transition: opacity 0.1s; z-index: 10;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.55); white-space: nowrap;
+  }
+  .tooltip.visible { opacity: 1; }
+  .tooltip .t-id { color: var(--text-dim); font-size: 0.65rem; }
+  .tooltip .t-val { font-family: var(--mono); font-weight: 600; font-size: 0.95rem; }
+  .tooltip .t-date { color: var(--text-dim); font-size: 0.68rem; }
+  .tooltip .t-flag { color: var(--dot-over); font-weight: 600; font-size: 0.7rem; margin-top: 0.2rem; }
+
+  /* Legend */
+  .legend {
+    display: flex; gap: 1.4rem; justify-content: center; flex-wrap: wrap;
+    font-size: 0.72rem; color: var(--text-dim); margin-bottom: 1.8rem;
+  }
+  .legend span { display: flex; align-items: center; gap: 0.35rem; }
+  .leg-line {
+    width: 20px; height: 0; display: inline-block;
+  }
+
+  /* Data table */
+  .table-section h2 {
+    font-size: 1rem; font-weight: 600; margin-bottom: 0.6rem; letter-spacing: -0.02em;
+  }
+  .table-wrap {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; overflow-x: auto;
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+  thead th {
+    background: var(--surface2); color: var(--text-dim); font-weight: 600;
+    text-transform: uppercase; font-size: 0.62rem; letter-spacing: 0.06em;
+    padding: 0.65rem 0.75rem; text-align: right; border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+  }
+  thead th:first-child { text-align: center; width: 3em; }
+  thead th:nth-child(2) { text-align: left; }
+  tbody td {
+    padding: 0.5rem 0.75rem; border-bottom: 1px solid var(--border);
+    font-family: var(--mono); font-size: 0.78rem; text-align: right;
+  }
+  tbody td:first-child { text-align: center; color: var(--text-dim); font-size: 0.72rem; }
+  tbody td:nth-child(2) { font-family: var(--font); text-align: left; color: var(--text-dim); }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: rgba(126,232,250,0.03); }
+  tbody tr.over-limit td:nth-child(3) { color: var(--dot-over); font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <h1>XmR Chart — Cycle Time</h1>
+      <p>Individual chart (X) · dane styczeń–kwiecień 2024</p>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <span class="badge"><span class="dot" style="background:var(--mean-color)"></span> X̄ = średnia</span>
+      <span class="badge"><span class="dot" style="background:var(--unpl-color)"></span> UNPL = X̄ + 2.66·mR̄</span>
+      <span class="badge"><span class="dot" style="background:var(--lnpl-color)"></span> LNPL = X̄ − 2.66·mR̄</span>
+    </div>
+  </div>
+
+  <div class="metrics" id="metrics"></div>
+
+  <div class="chart-box">
+    <canvas id="xChart"></canvas>
+    <div class="tooltip" id="tip"></div>
+  </div>
+
+  <div class="legend">
+    <span><span class="leg-line" style="border-top:2px solid var(--line-color)"></span> Cycle Time</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--mean-color)"></span> Średnia (X̄)</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--unpl-color)"></span> UNPL</span>
+    <span><span class="leg-line" style="border-top:2px dashed var(--lnpl-color)"></span> LNPL</span>
+    <span><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dot-over)"></span> Poza limitem</span>
+  </div>
+
+  <div class="table-section">
+    <h2>Dane szczegółowe</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Data zamknięcia</th><th>Cycle Time</th><th>Moving Range</th></tr></thead>
+        <tbody id="tBody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+//  DATA
+// ═══════════════════════════════════════
+const DATA = [
+  {id:1,closed:"2024-01-05",ct:38},{id:2,closed:"2024-01-11",ct:24},
+  {id:3,closed:"2024-01-16",ct:14},{id:4,closed:"2024-01-17",ct:9},
+  {id:5,closed:"2024-01-22",ct:4},{id:6,closed:"2024-01-26",ct:25},
+  {id:7,closed:"2024-01-29",ct:19},{id:8,closed:"2024-02-06",ct:51},
+  {id:9,closed:"2024-02-12",ct:48},{id:10,closed:"2024-02-15",ct:15},
+  {id:11,closed:"2024-02-17",ct:22},{id:12,closed:"2024-02-18",ct:42},
+  {id:13,closed:"2024-02-19",ct:17},{id:14,closed:"2024-02-21",ct:7},
+  {id:15,closed:"2024-02-28",ct:5},{id:16,closed:"2024-03-12",ct:20},
+  {id:17,closed:"2024-03-14",ct:63},{id:18,closed:"2024-03-19",ct:6},
+  {id:19,closed:"2024-03-20",ct:56},{id:20,closed:"2024-03-22",ct:24},
+  {id:21,closed:"2024-03-22",ct:22},{id:22,closed:"2024-03-26",ct:50},
+  {id:23,closed:"2024-03-27",ct:8},{id:24,closed:"2024-03-28",ct:2},
+  {id:25,closed:"2024-03-29",ct:3},{id:26,closed:"2024-03-30",ct:8},
+  {id:27,closed:"2024-04-01",ct:36},{id:28,closed:"2024-04-02",ct:27},
+  {id:29,closed:"2024-04-09",ct:29},{id:30,closed:"2024-04-09",ct:20}
+];
+
+// ═══════════════════════════════════════
+//  XmR CALCULATIONS
+// ═══════════════════════════════════════
+const N = DATA.length;
+const ctArr = DATA.map(d => d.ct);
+const mrArr = [null];
+for (let i = 1; i < N; i++) mrArr.push(Math.abs(ctArr[i] - ctArr[i - 1]));
+
+const avgCT = ctArr.reduce((a, b) => a + b, 0) / N;
+const avgMR = mrArr.slice(1).reduce((a, b) => a + b, 0) / (N - 1);
+const UNPL = avgCT + 2.66 * avgMR;
+const LNPL = avgCT - 2.66 * avgMR;
+// LNPL clamp: if negative, natural lower limit is 0 for cycle time
+const LNPL_draw = Math.max(LNPL, 0);
+
+// Flag out-of-control points
+DATA.forEach((d, i) => { d.mr = mrArr[i]; d.over = d.ct > UNPL || d.ct < LNPL; });
+
+// ═══════════════════════════════════════
+//  METRICS
+// ═══════════════════════════════════════
+const overCount = DATA.filter(d => d.over).length;
+document.getElementById('metrics').innerHTML = `
+  <div class="metric m-n"><div class="m-label">Obserwacje</div><div class="m-value">${N}</div><div class="m-sub">punktów danych</div></div>
+  <div class="metric m-mean"><div class="m-label">Średnia (X̄)</div><div class="m-value">${avgCT.toFixed(2)}</div><div class="m-sub">dni cycle time</div></div>
+  <div class="metric m-mr"><div class="m-label">Śr. Moving Range</div><div class="m-value">${avgMR.toFixed(2)}</div><div class="m-sub">mR̄</div></div>
+  <div class="metric m-unpl"><div class="m-label">UNPL</div><div class="m-value">${UNPL.toFixed(2)}</div><div class="m-sub">X̄ + 2.66 · mR̄</div></div>
+  <div class="metric m-lnpl"><div class="m-label">LNPL</div><div class="m-value">${LNPL.toFixed(2)}</div><div class="m-sub">X̄ − 2.66 · mR̄${LNPL < 0 ? ' (rys. 0)' : ''}</div></div>
+  <div class="metric" style="--accent:var(--dot-over)"><div class="m-label">Poza limitem</div><div class="m-value" style="color:${overCount ? 'var(--dot-over)' : 'var(--text)'}">${overCount}</div><div class="m-sub">z ${N} obserwacji</div></div>
+`;
+
+// ═══════════════════════════════════════
+//  CHART
+// ═══════════════════════════════════════
+const canvas = document.getElementById('xChart');
+const ctx = canvas.getContext('2d');
+const tip = document.getElementById('tip');
+const DPR = window.devicePixelRatio || 1;
+const PAD = { top: 32, right: 90, bottom: 52, left: 56 };
+let CW, CH, pW, pH, pts = [];
+
+function resize() {
+  const r = canvas.parentElement.getBoundingClientRect();
+  CW = r.width - 2.6 * 16;
+  CH = Math.min(440, Math.max(280, CW * 0.42));
+  canvas.width = CW * DPR; canvas.height = CH * DPR;
+  canvas.style.width = CW + 'px'; canvas.style.height = CH + 'px';
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  pW = CW - PAD.left - PAD.right;
+  pH = CH - PAD.top - PAD.bottom;
+}
+
+function draw() {
+  const c = ctx;
+  c.clearRect(0, 0, CW, CH);
+  pts = [];
+
+  const yMax = Math.max(UNPL, ...ctArr) * 1.12;
+  const yMin = Math.min(LNPL_draw, 0);
+  const yRange = yMax - yMin || 1;
+
+  const sx = i => PAD.left + (i / (N - 1)) * pW;
+  const sy = v => PAD.top + pH - ((v - yMin) / yRange) * pH;
+
+  // ── grid Y ──
+  c.strokeStyle = 'rgba(30,42,58,0.7)'; c.lineWidth = 0.5;
+  const yTicks = 6;
+  for (let i = 0; i <= yTicks; i++) {
+    const v = yMin + (yRange / yTicks) * i;
+    const y = sy(v);
+    c.beginPath(); c.moveTo(PAD.left, y); c.lineTo(PAD.left + pW, y); c.stroke();
+    c.fillStyle = '#6b7f99'; c.font = '10px "IBM Plex Mono",monospace';
+    c.textAlign = 'right'; c.fillText(Math.round(v), PAD.left - 10, y + 4);
+  }
+
+  // ── Y label ──
+  c.save(); c.translate(13, PAD.top + pH / 2); c.rotate(-Math.PI / 2);
+  c.fillStyle = '#6b7f99'; c.font = '10px "Outfit",sans-serif';
+  c.textAlign = 'center'; c.fillText('Cycle Time (dni)', 0, 0); c.restore();
+
+  // ── X labels (item IDs) ──
+  c.fillStyle = '#6b7f99'; c.font = '9px "IBM Plex Mono",monospace'; c.textAlign = 'center';
+  const labelStep = N <= 35 ? 1 : Math.ceil(N / 20);
+  for (let i = 0; i < N; i += labelStep) {
+    const x = sx(i);
+    c.fillText(`#${DATA[i].id}`, x, CH - PAD.bottom + 14);
+    // date below
+    const dt = new Date(DATA[i].closed);
+    const ds = `${dt.getDate()}.${String(dt.getMonth()+1).padStart(2,'0')}`;
+    c.fillText(ds, x, CH - PAD.bottom + 26);
+  }
+
+  // ── control lines (behind data) ──
+  const drawHLine = (val, color, label, dashArr) => {
+    const y = sy(val);
+    c.strokeStyle = color; c.lineWidth = 1.4;
+    c.setLineDash(dashArr);
+    c.beginPath(); c.moveTo(PAD.left, y); c.lineTo(PAD.left + pW, y); c.stroke();
+    c.setLineDash([]);
+    // label
+    c.fillStyle = color; c.font = '600 10px "IBM Plex Mono",monospace'; c.textAlign = 'left';
+    c.fillText(`${label}: ${val.toFixed(2)}`, PAD.left + pW + 6, y + 4);
+  };
+
+  drawHLine(avgCT, '#58a6ff', 'X̄', [6, 4]);
+  drawHLine(UNPL, '#f0883e', 'UNPL', [8, 4]);
+  if (LNPL >= 0) {
+    drawHLine(LNPL, '#56d364', 'LNPL', [8, 4]);
+  } else {
+    // draw at 0 with note
+    const y0 = sy(0);
+    c.strokeStyle = '#56d364'; c.lineWidth = 1; c.setLineDash([4, 4]);
+    c.beginPath(); c.moveTo(PAD.left, y0); c.lineTo(PAD.left + pW, y0); c.stroke();
+    c.setLineDash([]);
+    c.fillStyle = '#56d364'; c.font = '500 9px "IBM Plex Mono",monospace'; c.textAlign = 'left';
+    c.fillText(`LNPL: ${LNPL.toFixed(2)}`, PAD.left + pW + 6, y0 + 4);
+    c.fillStyle = '#3d5068'; c.font = '9px "Outfit",sans-serif';
+    c.fillText('(< 0, rys. na 0)', PAD.left + pW + 6, y0 + 16);
+  }
+
+  // ── UNPL shading ──
+  c.fillStyle = 'rgba(240,136,62,0.04)';
+  c.fillRect(PAD.left, PAD.top, pW, sy(UNPL) - PAD.top);
+
+  // ── data line ──
+  c.strokeStyle = '#7ee8fa'; c.lineWidth = 1.8; c.lineJoin = 'round';
+  c.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = sx(i), y = sy(ctArr[i]);
+    if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+  }
+  c.stroke();
+
+  // ── line glow ──
+  c.save(); c.globalAlpha = 0.15;
+  c.strokeStyle = '#7ee8fa'; c.lineWidth = 6; c.lineJoin = 'round';
+  c.beginPath();
+  for (let i = 0; i < N; i++) {
+    const x = sx(i), y = sy(ctArr[i]);
+    if (i === 0) c.moveTo(x, y); else c.lineTo(x, y);
+  }
+  c.stroke(); c.restore();
+
+  // ── dots ──
+  for (let i = 0; i < N; i++) {
+    const x = sx(i), y = sy(ctArr[i]);
+    const over = DATA[i].over;
+    const col = over ? '#f0883e' : '#7ee8fa';
+
+    // glow
+    const g = c.createRadialGradient(x, y, 2, x, y, over ? 14 : 10);
+    g.addColorStop(0, col + (over ? '50' : '28'));
+    g.addColorStop(1, 'transparent');
+    c.beginPath(); c.arc(x, y, over ? 14 : 10, 0, Math.PI * 2); c.fillStyle = g; c.fill();
+
+    // dot
+    c.beginPath(); c.arc(x, y, over ? 5.5 : 4.5, 0, Math.PI * 2);
+    c.fillStyle = col; c.fill();
+    if (over) { c.strokeStyle = '#f0883e88'; c.lineWidth = 2; c.stroke(); }
+
+    pts.push({ x, y, i });
+  }
+}
+
+// ── tooltip ──
+canvas.addEventListener('mousemove', e => {
+  const r = canvas.getBoundingClientRect();
+  const mx = e.clientX - r.left, my = e.clientY - r.top;
+  let best = null, bestD = 28;
+  pts.forEach(p => {
+    const d = Math.hypot(p.x - mx, p.y - my);
+    if (d < bestD) { bestD = d; best = p; }
+  });
+  if (best) {
+    const d = DATA[best.i];
+    const dt = new Date(d.closed).toLocaleDateString('pl-PL', { day:'numeric', month:'long', year:'numeric' });
+    const mrText = d.mr !== null ? d.mr : '—';
+    const flagHTML = d.over ? `<div class="t-flag">⚠ Poza limitem kontrolnym</div>` : '';
+    tip.innerHTML = `<div class="t-id">#${d.id}</div><div class="t-val">${d.ct} dni</div><div class="t-date">${dt}</div><div style="color:var(--text-dim);font-size:0.68rem">MR: ${mrText}</div>${flagHTML}`;
+    tip.classList.add('visible');
+    let tx = best.x + 14, ty = best.y - 24;
+    if (tx + 170 > CW) tx = best.x - 180;
+    if (ty < 0) ty = 10;
+    tip.style.left = tx + 'px'; tip.style.top = ty + 'px';
+    canvas.style.cursor = 'pointer';
+  } else {
+    tip.classList.remove('visible');
+    canvas.style.cursor = 'crosshair';
+  }
+});
+canvas.addEventListener('mouseleave', () => { tip.classList.remove('visible'); canvas.style.cursor = 'crosshair'; });
+
+// ═══════════════════════════════════════
+//  DATA TABLE
+// ═══════════════════════════════════════
+document.getElementById('tBody').innerHTML = DATA.map(d => {
+  const dt = new Date(d.closed);
+  const ds = dt.toLocaleDateString('pl-PL', { day: 'numeric', month: 'short', year: 'numeric' });
+  const cls = d.over ? ' class="over-limit"' : '';
+  return `<tr${cls}><td>${d.id}</td><td>${ds}</td><td>${d.ct}</td><td>${d.mr !== null ? d.mr : '—'}</td></tr>`;
+}).join('');
+
+// ═══════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════
+window.addEventListener('resize', () => { resize(); draw(); });
+resize(); draw();
+</script>
+</body>
+</html>
